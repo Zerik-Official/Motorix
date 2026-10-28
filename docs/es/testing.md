@@ -33,7 +33,8 @@ Crea sus propias cuentas, cliente, motor y órdenes con un sufijo único por eje
 4. Un `admin` registra un cliente y un motor. El operativo (`user`) puede consultarlos pero recibe `403` al registrar un cliente.
 5. El operativo abre una orden de reparación, cuyo cliente sale del motor, y la lleva hasta `delivered`. El historial registra cada estado y quién lo cambió.
 6. Un `admin` le revoca `repair_orders:write` a `user`: el token actual del operativo sigue sirviendo hasta que expira, y un login nuevo recibe `403`. Después se restaura el permiso.
-7. Una cuenta desactivada ya no puede iniciar sesión.
+7. Una sesión renovada con la cookie de refresco obtiene un token de acceso que `business-api` acepta; reutilizar la cookie rotada termina la sesión, y el logout también.
+8. Una cuenta desactivada ya no puede iniciar sesión.
 
 ## Workflows
 

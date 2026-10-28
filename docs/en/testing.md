@@ -33,7 +33,8 @@ It creates its own accounts, client, engine and orders with a suffix unique to e
 4. An `admin` registers a client and an engine. The operator (`user`) can read them but gets `403` registering a client.
 5. The operator opens a repair order, whose client comes from the engine, and moves it to `delivered`. The history records every status and who changed it.
 6. An `admin` revokes `repair_orders:write` from `user`: the operator's current token keeps working until it expires, and a fresh login gets `403`. The permission is restored afterwards.
-7. A deactivated account can no longer log in.
+7. A session renewed with the refresh cookie gets an access token that `business-api` accepts; reusing the rotated cookie ends the session, and logout ends it too.
+8. A deactivated account can no longer log in.
 
 ## Workflows
 
