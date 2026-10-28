@@ -28,6 +28,11 @@ class ClientCreate(ClientBase):
 class ClientUpdate(ClientBase):
     """Body of `PUT /clients/{id}`."""
 
+    is_active: bool | None = Field(
+        default=None,
+        description="Set to true to reactivate or false to deactivate; omitted keeps the current state",
+    )
+
 
 class ClientRead(ClientBase):
     """Representation of a client returned by the API."""
