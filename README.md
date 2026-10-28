@@ -104,7 +104,7 @@ The [getting started guide](docs/en/getting-started.md) covers installing Bun an
 
 ## Documentation
 
-The documentation is built with MkDocs Material in English and Spanish:
+The documentation is built with MkDocs Material in English and Spanish, and published at <https://zerik-official.github.io/Motorix/docs/>. To serve it locally:
 
 ```bash
 pip install -r requirements-docs.txt
