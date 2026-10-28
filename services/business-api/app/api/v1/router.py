@@ -4,8 +4,9 @@
 from fastapi import APIRouter
 
 # Project imports
-from app.api.v1.routers import clients, me
+from app.api.v1.routers import clients, engines, me
 
 api_router: APIRouter = APIRouter(prefix="/api/v1")
 api_router.include_router(me.router)
 api_router.include_router(clients.router)
+api_router.include_router(engines.router)
