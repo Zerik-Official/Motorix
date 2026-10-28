@@ -12,6 +12,7 @@ Technical documentation is available in English and Spanish. It is also publishe
 | [Security](en/security.md) | JWT with RS256, key management per environment, hardening |
 | [Data model](en/data-model.md) | Databases, entities, relationships and constraints |
 | [Testing and CI](en/testing.md) | Test suites, end-to-end scenarios and GitHub Actions workflows |
+| [Deployment](en/deployment.md) | Images, continuous deployment to the VPS, nginx and Cloudflare |
 
 ## Español
 
@@ -23,3 +24,4 @@ Technical documentation is available in English and Spanish. It is also publishe
 | [Seguridad](es/security.md) | JWT con RS256, gestión de claves por entorno, endurecimiento |
 | [Modelo de datos](es/data-model.md) | Bases de datos, entidades, relaciones y restricciones |
 | [Pruebas y CI](es/testing.md) | Suites de pruebas, escenarios extremo a extremo y workflows de GitHub Actions |
+| [Despliegue](es/deployment.md) | Imágenes, despliegue continuo en la VPS, nginx y Cloudflare |

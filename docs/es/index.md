@@ -9,3 +9,4 @@ Motorix es una plataforma interna para un taller de reparación de motores de mi
 - [Seguridad](security.md): flujo de autenticación, firma de JWT con RS256 y gestión de claves.
 - [Modelo de datos](data-model.md): bases de datos, entidades y relaciones.
 - [Pruebas y CI](testing.md): suites de pruebas, escenarios extremo a extremo y workflows de GitHub Actions.
+- [Despliegue](deployment.md): imágenes, despliegue continuo en la VPS, nginx y Cloudflare.

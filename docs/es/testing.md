@@ -46,6 +46,7 @@ Crea sus propias cuentas, cliente, motor y órdenes con un sufijo único por eje
 | `auth-api` | `services/auth-api/**` | ESLint, `tsc`, `bun test`, migraciones Prisma contra PostgreSQL, arranque del servidor, comprobación de `/health` y login como `root` |
 | `web` | `apps/web/**` | ESLint, `tsc`, Vitest, build de producción con Vite y una comprobación de que el build reemplazó todos los placeholders `%VITE_*%` de `index.html` |
 | `e2e` | `services/**`, `tests/e2e/**`, el script de inicialización de Postgres | Crea las dos bases con el mismo script de inicialización que Docker, verifica que el rol de cada servicio no puede abrir la base del otro, migra y arranca los dos servicios con un par de claves desechable, corre la suite extremo a extremo e imprime los logs de los servicios |
+| `deploy` | Cada push a `main` | Construye y publica las tres imágenes en GHCR, las descarga en la VPS, reinicia el stack y comprueba el sitio público; ver [Despliegue](deployment.md) |
 | `docs` | `docs/**`, `mkdocs.yml` | `mkdocs build --strict`, y despliegue en GitHub Pages en `main` |
 
 No se guarda ningún secreto para CI: cada ejecución genera su propio par de claves RS256.

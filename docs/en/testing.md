@@ -46,6 +46,7 @@ It creates its own accounts, client, engine and orders with a suffix unique to e
 | `auth-api` | `services/auth-api/**` | ESLint, `tsc`, `bun test`, Prisma migrations against PostgreSQL, start the server, check `/health` and log in as `root` |
 | `web` | `apps/web/**` | ESLint, `tsc`, Vitest, production build with Vite, and a check that the build replaced every `%VITE_*%` placeholder of `index.html` |
 | `e2e` | `services/**`, `tests/e2e/**`, the Postgres init script | Create both databases with the same init script as Docker, verify that each service role cannot open the other database, migrate and start both services with a throwaway key pair, run the end-to-end suite, print the service logs |
+| `deploy` | Every push to `main` | Build and publish the three images to GHCR, then pull them on the VPS, restart the stack and check the public site; see [Deployment](deployment.md) |
 | `docs` | `docs/**`, `mkdocs.yml` | `mkdocs build --strict`, and deploy to GitHub Pages on `main` |
 
 No secret is stored for CI: every run generates its own RS256 key pair.
