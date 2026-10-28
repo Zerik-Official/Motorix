@@ -1,5 +1,5 @@
 import type { IconType } from "react-icons";
-import { LuBuilding2, LuClipboardList, LuCog, LuLayoutDashboard } from "react-icons/lu";
+import { LuBuilding2, LuClipboardList, LuCog, LuLayoutDashboard, LuShieldCheck, LuUsers } from "react-icons/lu";
 
 import type { Permission } from "@shared/session/types";
 
@@ -27,4 +27,6 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/app/ordenes", label: "Órdenes", icon: LuClipboardList, permission: "repair_orders:read", tourId: "nav-orders" },
   { to: "/app/clientes", label: "Clientes", icon: LuBuilding2, permission: "clients:read", tourId: "nav-clients" },
   { to: "/app/motores", label: "Motores", icon: LuCog, permission: "engines:read", tourId: "nav-engines" },
+  { to: "/app/usuarios", label: "Usuarios", icon: LuUsers, permission: "users:manage", tourId: "nav-users" },
+  { to: "/app/permisos", label: "Permisos", icon: LuShieldCheck, permission: "permissions:manage", tourId: "nav-permissions" },
 ];
