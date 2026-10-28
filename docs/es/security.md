@@ -90,7 +90,17 @@ Un rol solo limita hasta dónde puede llegar una cuenta administrando otras cuen
 
 **Cómo llega a `business-api`.** Al iniciar sesión, `auth-api` resuelve los permisos actuales de la cuenta (leídos de `role_permissions`, o el catálogo completo para `root`) y los incluye como claim `permissions` en el JWT. `business-api` sigue verificando firma, `exp`, `iss` y `aud` como siempre, y además comprueba que ese claim contenga el permiso que exige cada endpoint. Como la lista viaja dentro del token, revocar un permiso solo tiene efecto la próxima vez que la cuenta inicia sesión, la misma concesión que ya se acepta para el claim `role`; así `business-api` nunca necesita llamar de vuelta a `auth-api` para resolver autorización.
 
-**Estado.** `auth-api` ya tiene el catálogo, la tabla `role_permissions` con sus valores por defecto, las reglas de otorgar/revocar descritas arriba y el claim `permissions` en cada token que firma. Falta: los endpoints de otorgar/revocar y la dependencia `require_permission` en `business-api`; hasta entonces cada endpoint de `business-api` solo exige un token válido, sin importar el rol.
+**Endpoints.** Todos exigen `permissions:manage`:
+
+| Endpoint | Propósito |
+| --- | --- |
+| `GET /api/v1/roles` | El catálogo y cada rol con sus permisos actuales, indicando cuáles puede cambiar quien llama (`editable`) |
+| `PUT /api/v1/roles/{role}/permissions/{permission}` | Otorgar; otorgar un permiso que el rol ya tiene no cambia nada |
+| `DELETE /api/v1/roles/{role}/permissions/{permission}` | Revocar; revocar un permiso que el rol no tiene no cambia nada |
+
+Revocarle un permiso a `admin` no se lo quita a `user`: cada rol conserva su propia lista, y `root` puede revocárselo a `user` directamente. Cada otorgamiento y revocación queda en el log con la cuenta que lo hizo.
+
+**Estado.** Implementado en `auth-api`. Falta: la dependencia `require_permission` en `business-api`; hasta entonces cada endpoint de `business-api` solo exige un token válido, sin importar el rol.
 
 ## Contraseñas
 
