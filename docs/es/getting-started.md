@@ -321,7 +321,46 @@ El servicio corre sobre el runtime de Bun, que además cifra las contraseñas co
 
 ### web
 
-Se documenta cuando se añada la aplicación.
+React 19 con TypeScript, construida con Vite y con estilos en Tailwind CSS. Se comunica con `auth-api` para la sesión y con `business-api` para los datos del taller.
+
+1. Instala las dependencias:
+
+   ```bash
+   cd apps/web
+   bun install
+   ```
+
+2. Crea el archivo de entorno:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Obligatoria | Descripción |
+   | --- | --- | --- |
+   | `VITE_AUTH_API_URL` | No | URL base de `auth-api`. Por defecto `http://localhost:3000`. |
+   | `VITE_BUSINESS_API_URL` | No | URL base de `business-api`. Por defecto `http://localhost:8000`. |
+   | `VITE_TURNSTILE_SITE_KEY` | No | Clave pública de sitio de Cloudflare Turnstile del formulario de login. Vacía oculta el widget; `1x00000000000000000000AA` siempre aprueba. Debe ir en pareja con `TURNSTILE_SECRET_KEY` de `auth-api`. |
+   | `VITE_SITE_URL` | No | URL pública del sitio, usada en el enlace canónico y en las etiquetas Open Graph. |
+
+   Estos valores quedan dentro del build y cualquiera puede verlos, así que nunca contienen secretos.
+
+3. Arranca el servidor de desarrollo, con las dos API corriendo, y abre `http://localhost:5173`:
+
+   ```bash
+   bun run dev
+   ```
+
+   El origen de la web debe estar en `CORS_ORIGINS` de las dos API. La cookie de refresco es `Secure`; los navegadores la aceptan en `http://localhost`.
+
+4. Ejecuta el linter, la verificación de tipos, los tests y el build de producción:
+
+   ```bash
+   bun run lint
+   bun run typecheck
+   bun run test
+   bun run build
+   ```
 
 ## Documentación
 
