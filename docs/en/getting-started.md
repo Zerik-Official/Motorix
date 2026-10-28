@@ -171,6 +171,20 @@ docker compose exec postgres psql -U postgres -c "\l"
 
 The initialization script only runs when the data volume is empty. To run it again, remove the volume with `docker compose down -v`.
 
+### Without Docker
+
+With a native PostgreSQL install, create both databases and their roles as a superuser, with the values of the root `.env`:
+
+```bash
+psql -U postgres -h localhost -v ON_ERROR_STOP=1 \
+  -c "CREATE ROLE auth_service LOGIN PASSWORD 'change-me-auth';" \
+  -c "CREATE DATABASE auth_db OWNER auth_service;" \
+  -c "REVOKE ALL ON DATABASE auth_db FROM PUBLIC;" \
+  -c "CREATE ROLE business_service LOGIN PASSWORD 'change-me-business';" \
+  -c "CREATE DATABASE business_db OWNER business_service;" \
+  -c "REVOKE ALL ON DATABASE business_db FROM PUBLIC;"
+```
+
 ## Component configuration
 
 ### business-api
@@ -235,7 +249,64 @@ The initialization script only runs when the data volume is empty. To run it aga
 
 ### auth-api
 
-Documented when the service is added.
+The service runs on the Bun runtime, which also hashes passwords with its built-in Argon2id.
+
+1. Install the dependencies; this also generates the Prisma client:
+
+   ```bash
+   cd services/auth-api
+   bun install
+   ```
+
+2. Create the environment file and fill in the variables:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Required | Description |
+   | --- | --- | --- |
+   | `APP_NAME` | No | Service name, also the name of its log folder. Defaults to `auth-api`. |
+   | `ENVIRONMENT` | No | `local`, `test`, `staging` or `production`. Defaults to `local`. |
+   | `HOST` / `PORT` | No | Address the server listens on. Defaults to `0.0.0.0:3000`. |
+   | `CORS_ORIGINS` | No | Comma separated origins allowed to call the API, such as the web app URL. |
+   | `DB_HOST` / `DB_PORT` | No | PostgreSQL address. Defaults to `localhost:5432`. |
+   | `DB_NAME` | Yes | Must match `AUTH_DB_NAME` of the root `.env`. |
+   | `DB_USER` | Yes | Must match `AUTH_DB_USER` of the root `.env`. |
+   | `DB_PASSWORD` | Yes | Must match `AUTH_DB_PASSWORD` of the root `.env`. |
+   | `DB_POOL_SIZE` | No | Connection pool size. Defaults to `5`. |
+   | `JWT_PRIVATE_KEY_PATH` | One of both | Path to the RS256 private key, relative to the service folder. |
+   | `JWT_PRIVATE_KEY` | One of both | Inline PEM private key (PKCS#8), used instead of the path in CI and servers; `\n` is accepted for line breaks. |
+   | `JWT_ISSUER` | No | `iss` claim of every token. Must match `JWT_ISSUER` of `business-api`. |
+   | `JWT_AUDIENCE` | No | `aud` claim of every token. Must match `JWT_AUDIENCE` of `business-api`. |
+   | `JWT_EXPIRES_IN_SECONDS` | No | Token lifetime. Defaults to `3600`. |
+   | `ROOT_EMAIL` | Yes | Email of the single `root` account. |
+   | `ROOT_PASSWORD` | Yes | Password of `root`, at least 12 characters. |
+   | `ROOT_FULL_NAME` | No | Display name of `root`. Defaults to `Root`. |
+   | `LOG_LEVEL` | No | Minimum level printed: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` or `CRITICAL`. |
+   | `LOG_VERBOSITY` | No | Highest verbosity printed; `1` shows only the most relevant lines and `2` adds the access log. |
+   | `LOG_SUPPRESS` | No | Levels or level/verbosity pairs never printed, such as `DEBUG:3,SUCCESS`. |
+   | `LOG_TO_FILE` | No | Copy logs to `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Defaults to `true`. |
+   | `LOG_DIR` | No | Folder of the log files, relative to the service folder. Defaults to `logs`. |
+
+   `root` is seeded on every start from `ROOT_*`: it is created the first time, and later changes to these variables are applied to the account. It cannot be changed through the API.
+
+3. Apply the migrations and start the server:
+
+   ```bash
+   bun run db:migrate
+   bun run dev
+   ```
+
+   Check it with `curl http://localhost:3000/health`.
+
+4. Run the linter, the type check and the tests:
+
+   ```bash
+   bun run lint
+   bun run typecheck
+   bun test
+   ```
 
 ### web
 
