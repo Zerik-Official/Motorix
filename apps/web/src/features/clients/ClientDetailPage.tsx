@@ -4,12 +4,12 @@ import { Link, useNavigate, useParams } from "react-router";
 
 import { Button, buttonVariants } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { cn } from "@/lib/utils";
 import type { OffsetPage } from "@shared/api/pagination";
 import { ActiveBadge } from "@shared/components/ActiveBadge";
 import { ConfirmModal } from "@shared/components/ConfirmModal";
 import { DetailItem } from "@shared/components/DetailItem";
 import { ErrorState } from "@shared/components/ErrorState";
+import { ReactivateButton } from "@shared/components/ReactivateButton";
 import { formatIdentification, IDENTIFICATION_LABELS, type IdentificationType } from "@shared/domain/identification";
 import { useToast } from "@shared/feedback/useToast";
 import { formatDate, formatDateTime } from "@shared/format";
@@ -20,7 +20,7 @@ import { Can } from "@shared/session/Can";
 import { fetchEngines, type Engine } from "../engines/api";
 import { EngineFormModal } from "../engines/components/EngineFormModal";
 import { EnginesList } from "../engines/components/EnginesList";
-import { deactivateClient, fetchClientDetail, type Client } from "./api";
+import { deactivateClient, fetchClientDetail, reactivateClient, type Client } from "./api";
 import { ClientFormModal } from "./components/ClientFormModal";
 
 /**
@@ -93,7 +93,7 @@ function ClientEngines({ client }: ClientEnginesProps) {
         </p>
       ) : (
         <>
-          <EnginesList engines={engines.data.items} label={`Motores de ${client.name}`} />
+          <EnginesList engines={engines.data.items} label={`Motores de ${client.name}`} showOwner={false} />
           {total > ENGINE_PREVIEW_SIZE && (
             <Link to={`/app/motores?cliente=${client.id}&estado=all`} className="self-start text-sm font-medium text-link underline-offset-4 hover:underline">
               Ver los {total} motores del cliente
@@ -161,6 +161,15 @@ export function ClientDetailPage() {
   };
 
   /**
+   * Reactivates the client and confirms it.
+   */
+  const handleReactivate = async (): Promise<void> => {
+    const saved: Client = await reactivateClient(client);
+    setUpdated(saved);
+    notify({ tone: "success", title: "Cliente reactivado", description: `${saved.name} vuelve a aparecer al registrar motores.` });
+  };
+
+  /**
    * Deactivates the client and confirms it.
    */
   const handleDeactivate = async (): Promise<void> => {
@@ -181,7 +190,7 @@ export function ClientDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Can permission="repair_orders:read">
-              <Link to={`/app/ordenes?cliente=${client.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
+              <Link to={`/app/ordenes?cliente=${client.id}`} className={buttonVariants({ variant: "outline" })}>
                 <LuClipboardList aria-hidden />
                 Ver sus órdenes
               </Link>
@@ -191,11 +200,13 @@ export function ClientDetailPage() {
                 <LuPencil aria-hidden />
                 Editar
               </Button>
-              {client.is_active && (
+              {client.is_active ? (
                 <Button variant="destructive" onClick={() => setDeactivating(true)}>
                   <LuBan aria-hidden />
                   Desactivar
                 </Button>
+              ) : (
+                <ReactivateButton onReactivate={handleReactivate} />
               )}
             </Can>
           </div>
@@ -234,7 +245,7 @@ export function ClientDetailPage() {
         onConfirm={handleDeactivate}
       >
         <p>Dejará de aparecer al registrar motores y en la lista de clientes activos. Sus motores y sus órdenes se conservan tal como están.</p>
-        <p>La aplicación no permite reactivarlo después.</p>
+        <p>Puedes reactivarlo después desde esta misma página.</p>
       </ConfirmModal>
     </div>
   );
