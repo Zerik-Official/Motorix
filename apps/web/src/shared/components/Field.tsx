@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /**
  * Accessibility props a {@link Field} passes to its control.
  */
-interface FieldControlProps {
+export interface FieldControlProps {
   id?: string;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
@@ -18,8 +18,11 @@ interface FieldControlProps {
 interface FieldProps {
   /** Visible label of the control. */
   label: string;
-  /** Control of the field: an input, a select or a textarea. */
-  children: ReactElement<FieldControlProps>;
+  /**
+   * Control of the field. An element receives the accessibility props directly; a function
+   * receives them to place on the right element of a composite control, such as a select trigger.
+   */
+  children: ReactElement<FieldControlProps> | ((controlProps: FieldControlProps) => ReactNode);
   /** Help shown under the control. */
   hint?: ReactNode;
   /** Validation message; marks the control invalid. */
@@ -43,14 +46,18 @@ export function Field({ label, children, hint, error, required = false, classNam
   const errorId: string = `${id}-error`;
   const describedBy: string | undefined =
     [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
-  const control: ReactNode = isValidElement(children)
-    ? cloneElement(children, {
-        id,
-        "aria-invalid": error ? true : undefined,
-        "aria-describedby": describedBy,
-        "aria-required": required || undefined,
-      })
-    : children;
+  const controlProps: FieldControlProps = {
+    id,
+    "aria-invalid": error ? true : undefined,
+    "aria-describedby": describedBy,
+    "aria-required": required || undefined,
+  };
+  const control: ReactNode =
+    typeof children === "function"
+      ? children(controlProps)
+      : isValidElement(children)
+        ? cloneElement(children, controlProps)
+        : children;
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
