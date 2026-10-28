@@ -58,6 +58,36 @@ Roles follow a strict hierarchy: `root` > `admin` > `user`. A user can only mana
 - With only two roles, an admin could deactivate another admin and the platform could end up without any administrator. A single `root` above them removes that state without extra rules.
 - There is exactly one `root`. Its credentials are defined in the `auth-api` environment and seeded on startup: the password is hashed with Argon2id before it is stored, and the account cannot be created, changed or deactivated through the API.
 
+## Permissions
+
+A role only gates how far an account can go in managing other accounts (`4.1.6`); it says nothing about which business operations that account can perform. Without a separate permission layer every role would call the same `business-api` endpoints with the same rights, which defeats the point of having more than one role. Permissions close that gap: a fixed catalog of operations, granted to a role by default and adjustable per role by whoever is allowed to.
+
+**Catalog** (`resource:action`):
+
+| Permission | Default: `root` | Default: `admin` | Default: `user` |
+| --- | --- | --- | --- |
+| `clients:read` | Yes | Yes | Yes |
+| `clients:write` | Yes | Yes | Yes |
+| `engines:read` | Yes | Yes | Yes |
+| `engines:write` | Yes | Yes | Yes |
+| `repair_orders:read` | Yes | Yes | Yes |
+| `repair_orders:write` | Yes | Yes | Yes |
+| `users:manage` | Yes | Yes | No |
+| `permissions:manage` | Yes | Yes | No |
+
+`write` covers create, update and deactivate for that resource; `root` always has every permission.
+
+**Grant and revoke.** Permissions are assigned to a role, not to an individual account, and stored in `role_permissions` (`auth_db`). Whoever holds `permissions:manage` may only change the permissions of a role strictly below their own:
+
+- `root` can change the permissions of `admin` and `user`.
+- `admin` can change the permissions of `user` only.
+- Nobody can change the permissions of their own role or a role above it: an `admin` cannot change another `admin`'s permissions (there is no per-account distinction, only per role), and `user` cannot change anyone's.
+- `root`'s permissions are hardcoded to "every permission" and are never read from `role_permissions`; the API refuses any attempt to change them.
+
+**How it reaches `business-api`.** At login, `auth-api` resolves the caller's current permissions (role defaults overridden by `role_permissions`) and embeds them as a `permissions` claim in the JWT. `business-api` keeps verifying signature, `exp`, `iss` and `aud` as always, and additionally checks that the claim contains the permission a given endpoint requires. Because the list travels inside the token, a revoked permission only takes effect the next time the account logs in, the same trade-off already accepted for the `role` claim; this keeps `business-api` from ever calling back into `auth-api` to resolve authorization.
+
+**Status.** Not implemented yet. Today every endpoint of `clients` and `engines` only requires a valid token, regardless of role. The `role_permissions` table, the grant/revoke endpoints and their hierarchy check, the `permissions` claim, and the `require_permission` dependency in `business-api` are built together in the `auth-api` branches, since the permission data is administered there.
+
 ## Passwords
 
 Passwords are hashed with **Argon2id** in `auth-api`. Plain passwords are never stored or logged. `business-api` stores no passwords.
