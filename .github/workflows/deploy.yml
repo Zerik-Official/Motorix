@@ -19,6 +19,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+    environment: production
     strategy:
       fail-fast: true
       matrix:
@@ -31,6 +32,20 @@ jobs:
             context: apps/web
 
     steps:
+      - name: Check that the production variables are set
+        if: matrix.service == 'web'
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+        run: |
+          missing=""
+          [ -n "$PUBLIC_URL" ] || missing="$missing PUBLIC_URL"
+          [ -n "$TURNSTILE_SITE_KEY" ] || missing="$missing TURNSTILE_SITE_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Set these variables in the production environment:$missing"
+            exit 1
+          fi
+
       - name: Check out the repository
         uses: actions/checkout@v4
 
