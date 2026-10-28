@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Project imports
 from app.core.config import Settings
 from app.core.errors import AuthenticationError, PermissionDeniedError
-from app.core.security import CurrentUser, JwtVerifier, Role
+from app.core.security import CurrentUser, JwtVerifier, Permission
 from app.db.session import Database
 from app.repositories.client import ClientRepository
 from app.repositories.engine import EngineRepository
@@ -103,21 +103,20 @@ def get_current_user(
     return verifier.verify(credentials.credentials)
 
 
-def require_roles(*roles: Role) -> Callable[[CurrentUser], Awaitable[CurrentUser]]:
+def require_permission(permission: Permission) -> Callable[[CurrentUser], Awaitable[CurrentUser]]:
     """
-    Build a dependency that only lets the given roles through.
+    Build a dependency that only lets through callers whose token carries a permission.
 
     Args:
-        roles: Roles allowed to call the endpoint.
+        permission: Permission the endpoint requires.
 
     Returns:
         The dependency, which returns the caller when allowed.
     """
-    allowed: frozenset[Role] = frozenset(roles)
 
     async def dependency(user: Annotated[CurrentUser, Depends(get_current_user)]) -> CurrentUser:
         """
-        Check the role of the caller.
+        Check the permissions of the caller.
 
         Args:
             user: Identity of the caller.
@@ -126,10 +125,13 @@ def require_roles(*roles: Role) -> Callable[[CurrentUser], Awaitable[CurrentUser
             The identity of the caller.
 
         Raises:
-            PermissionDeniedError: When the role of the caller is not allowed.
+            PermissionDeniedError: When the token does not carry the permission.
         """
-        if user.role not in allowed:
-            raise PermissionDeniedError("Your role is not allowed to perform this operation")
+        if not user.has_permission(permission):
+            raise PermissionDeniedError(
+                f"This operation requires '{permission.value}'",
+                details={"permission": permission.value},
+            )
         return user
 
     return dependency
@@ -197,6 +199,12 @@ def get_repair_order_service(session: Annotated[AsyncSession, Depends(get_sessio
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
+ClientsReadDep = Annotated[CurrentUser, Depends(require_permission(Permission.CLIENTS_READ))]
+ClientsWriteDep = Annotated[CurrentUser, Depends(require_permission(Permission.CLIENTS_WRITE))]
+EnginesReadDep = Annotated[CurrentUser, Depends(require_permission(Permission.ENGINES_READ))]
+EnginesWriteDep = Annotated[CurrentUser, Depends(require_permission(Permission.ENGINES_WRITE))]
+RepairOrdersReadDep = Annotated[CurrentUser, Depends(require_permission(Permission.REPAIR_ORDERS_READ))]
+RepairOrdersWriteDep = Annotated[CurrentUser, Depends(require_permission(Permission.REPAIR_ORDERS_WRITE))]
 PageParamsDep = Annotated[PageParams, Depends()]
 ClientServiceDep = Annotated[ClientService, Depends(get_client_service)]
 EngineServiceDep = Annotated[EngineService, Depends(get_engine_service)]

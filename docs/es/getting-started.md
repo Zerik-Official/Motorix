@@ -225,6 +225,8 @@ psql -U postgres -h localhost -v ON_ERROR_STOP=1 \
    | `JWT_AUDIENCE` | No | Claim `aud` esperado. Debe coincidir con la audiencia de `auth-api`. |
    | `JWT_LEEWAY_SECONDS` | No | Desfase de reloj tolerado en `exp` e `iat`. Por defecto `10`. |
    | `MAX_PAGE_SIZE` | No | Límite superior del parámetro `limit`. Por defecto `100`. |
+   | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX` | No | Peticiones permitidas por cliente en `/api`. Por defecto `300` cada `900` segundos. |
+   | `FORWARDED_ALLOW_IPS` | No | Proxies cuya cabecera `X-Forwarded-For` acepta uvicorn para conocer la dirección del cliente. Por defecto `127.0.0.1`; usa la dirección de Nginx cuando corre en otra máquina. |
    | `LOG_LEVEL` | No | Nivel mínimo que se imprime: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` o `CRITICAL`. |
    | `LOG_VERBOSITY` | No | Verbosidad máxima que se imprime; `1` muestra solo las líneas más relevantes. |
    | `LOG_SUPPRESS` | No | Niveles o pares nivel/verbosidad que nunca se imprimen, como `DEBUG:3,SUCCESS`. |

@@ -54,6 +54,10 @@ class Settings(BaseSettings):
 
     max_page_size: int = Field(default=100, ge=1)
 
+    rate_limit_window_seconds: int = Field(default=900, ge=1)
+    rate_limit_max: int = Field(default=300, ge=1)
+    forwarded_allow_ips: str = "127.0.0.1"
+
     log_level: str = "INFO"
     log_verbosity: int = Field(default=1, ge=1)
     log_suppress: str = ""

@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from app.core.errors import AuthenticationError
 
 ALGORITHM: Final[str] = "RS256"
-REQUIRED_CLAIMS: Final[list[str]] = ["sub", "role", "iss", "aud", "iat", "exp"]
+REQUIRED_CLAIMS: Final[list[str]] = ["sub", "role", "permissions", "iss", "aud", "iat", "exp"]
 
 
 class Role(StrEnum):
@@ -26,6 +26,19 @@ class Role(StrEnum):
     USER = "user"
 
 
+class Permission(StrEnum):
+    """Operations an account may be allowed to perform, granted per role by auth-api."""
+
+    CLIENTS_READ = "clients:read"
+    CLIENTS_WRITE = "clients:write"
+    ENGINES_READ = "engines:read"
+    ENGINES_WRITE = "engines:write"
+    REPAIR_ORDERS_READ = "repair_orders:read"
+    REPAIR_ORDERS_WRITE = "repair_orders:write"
+    USERS_MANAGE = "users:manage"
+    PERMISSIONS_MANAGE = "permissions:manage"
+
+
 class CurrentUser(BaseModel):
     """Identity of the caller, taken from a verified access token."""
 
@@ -33,7 +46,39 @@ class CurrentUser(BaseModel):
 
     id: UUID
     role: Role
+    permissions: frozenset[Permission]
     expires_at: datetime
+
+    def has_permission(self, permission: Permission) -> bool:
+        """
+        Tell whether the caller may perform an operation.
+
+        Args:
+            permission: Permission the operation requires.
+
+        Returns:
+            True for `root`, which always holds every permission, or when the token carries it.
+        """
+        return self.role is Role.ROOT or permission in self.permissions
+
+
+def parse_permissions(raw: Any) -> frozenset[Permission]:
+    """
+    Read the `permissions` claim, ignoring names this service does not know yet.
+
+    Args:
+        raw: Value of the claim.
+
+    Returns:
+        The known permissions it lists.
+
+    Raises:
+        TypeError: When the claim is not a list of strings.
+    """
+    if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+        raise TypeError("The permissions claim must be a list of strings")
+    known: set[str] = {permission.value for permission in Permission}
+    return frozenset(Permission(item) for item in raw if item in known)
 
 
 class JwtVerifier:
@@ -86,6 +131,7 @@ class JwtVerifier:
             return CurrentUser(
                 id=claims["sub"],
                 role=claims["role"],
+                permissions=parse_permissions(claims["permissions"]),
                 expires_at=datetime.fromtimestamp(int(claims["exp"]), tz=timezone.utc),
             )
         except (ValidationError, TypeError, ValueError) as exc:

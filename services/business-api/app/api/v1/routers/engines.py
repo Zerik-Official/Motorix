@@ -8,11 +8,18 @@ from uuid import UUID
 from fastapi import APIRouter, Query, status
 
 # Project imports
-from app.api.dependencies import CurrentUserDep, EngineServiceDep, PageParamsDep
+from app.api.dependencies import EngineServiceDep, EnginesReadDep, EnginesWriteDep, PageParamsDep
 from app.schemas.common import ErrorResponse, Page
 from app.schemas.engine import EngineCreate, EngineRead, EngineUpdate
 
-router: APIRouter = APIRouter(prefix="/engines", tags=["engines"])
+router: APIRouter = APIRouter(
+    prefix="/engines",
+    tags=["engines"],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+    },
+)
 
 
 @router.post(
@@ -25,7 +32,7 @@ router: APIRouter = APIRouter(prefix="/engines", tags=["engines"])
     },
     summary="Register a new engine",
 )
-async def create_engine(data: EngineCreate, service: EngineServiceDep, _: CurrentUserDep) -> EngineRead:
+async def create_engine(data: EngineCreate, service: EngineServiceDep, _: EnginesWriteDep) -> EngineRead:
     """
     Register a new engine.
 
@@ -44,7 +51,7 @@ async def create_engine(data: EngineCreate, service: EngineServiceDep, _: Curren
 @router.get("", response_model=Page[EngineRead], summary="List engines")
 async def list_engines(
     service: EngineServiceDep,
-    _: CurrentUserDep,
+    _: EnginesReadDep,
     page: PageParamsDep,
     search: str | None = Query(default=None, description="Match on the serial number, manufacturer or model"),
     client_id: UUID | None = Query(default=None, description="Keep only the engines of this client"),
@@ -75,7 +82,7 @@ async def list_engines(
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse}},
     summary="Fetch one engine",
 )
-async def read_engine(engine_id: UUID, service: EngineServiceDep, _: CurrentUserDep) -> EngineRead:
+async def read_engine(engine_id: UUID, service: EngineServiceDep, _: EnginesReadDep) -> EngineRead:
     """
     Fetch one engine.
 
@@ -104,7 +111,7 @@ async def update_engine(
     engine_id: UUID,
     data: EngineUpdate,
     service: EngineServiceDep,
-    _: CurrentUserDep,
+    _: EnginesWriteDep,
 ) -> EngineRead:
     """
     Replace the editable fields of an engine.
@@ -128,7 +135,7 @@ async def update_engine(
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse}},
     summary="Deactivate an engine",
 )
-async def deactivate_engine(engine_id: UUID, service: EngineServiceDep, _: CurrentUserDep) -> EngineRead:
+async def deactivate_engine(engine_id: UUID, service: EngineServiceDep, _: EnginesWriteDep) -> EngineRead:
     """
     Deactivate an engine without deleting its row, so its repair history is preserved.
 

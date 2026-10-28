@@ -18,6 +18,7 @@ def main() -> None:
         port=settings.port,
         log_config=uvicorn_log_config(),
         proxy_headers=True,
+        forwarded_allow_ips=settings.forwarded_allow_ips,
     )
 
 

@@ -16,6 +16,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.log_files import close_service_logs, setup_service_logs
 from app.core.logging import configure_logging, log
+from app.core.rate_limit import RateLimiter, RateLimitMiddleware
 from app.core.security import JwtVerifier
 from app.db.session import Database
 
@@ -76,6 +77,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         issuer=resolved.jwt_issuer,
         audience=resolved.jwt_audience,
         leeway_seconds=resolved.jwt_leeway_seconds,
+    )
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=RateLimiter(limit=resolved.rate_limit_max, window_seconds=resolved.rate_limit_window_seconds),
     )
     if resolved.cors_origin_list:
         app.add_middleware(

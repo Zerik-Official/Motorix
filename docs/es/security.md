@@ -100,7 +100,7 @@ Un rol solo limita hasta dónde puede llegar una cuenta administrando otras cuen
 
 Revocarle un permiso a `admin` no se lo quita a `user`: cada rol conserva su propia lista, y `root` puede revocárselo a `user` directamente. Cada otorgamiento y revocación queda en el log con la cuenta que lo hizo.
 
-**Estado.** Implementado en `auth-api`. Falta: la dependencia `require_permission` en `business-api`; hasta entonces cada endpoint de `business-api` solo exige un token válido, sin importar el rol.
+**Aplicación en `business-api`.** Cada endpoint de negocio exige su permiso mediante la dependencia `require_permission`: `*:read` para listar y consultar, `*:write` para crear, actualizar, desactivar o cambiar el estado de una orden de reparación. Un token sin él recibe `403` con el permiso faltante en `details`. El claim `permissions` es obligatorio, los permisos que este servicio todavía no conoce se ignoran, y `root` pasa sin importar su claim. `GET /api/v1/me` devuelve los permisos que trae el token.
 
 ## Contraseñas
 
@@ -109,10 +109,10 @@ Las contraseñas se cifran con **Argon2id** en `auth-api`. Nunca se almacenan ni
 ## Endurecimiento
 
 - **Cloudflare Turnstile en el login.** La app web envía el token del widget como `turnstile_token`, y `auth-api` lo valida con Cloudflare del lado del servidor antes incluso de mirar la contraseña, así un bot nunca llega a gastar un hash Argon2id. Un token ausente o rechazado responde `400 captcha_failed`; si Cloudflare no responde, `503`. Sin `TURNSTILE_SECRET_KEY` la verificación se omite con una advertencia al arrancar, lo que solo se permite fuera de `production`. En local, las [claves de prueba](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) de Cloudflare fuerzan un acierto o un fallo.
-- **Rate limiting en `auth-api`**, por dirección del cliente y respondido con `429` y `Retry-After`:
-    - Todas las rutas de `/api`: `RATE_LIMIT_MAX` peticiones por `RATE_LIMIT_WINDOW_SECONDS` (300 cada 15 minutos por defecto). `/health` nunca se limita.
-    - Login: `LOGIN_RATE_LIMIT_MAX` intentos fallidos por `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (10 cada 15 minutos por defecto). Los logins exitosos no cuentan, así quien se equivoca una vez no queda bloqueado, mientras que un ataque de fuerza bruta se detiene a los pocos intentos.
-    - La dirección del cliente se toma de `X-Forwarded-For` solo cuando `TRUST_PROXY` indica cuántos proxies hay delante; con el valor por defecto `0` la cabecera se ignora, así no se puede falsificar para esquivar el límite.
+- **Rate limiting en ambas API**, por dirección del cliente y respondido con `429` y `Retry-After`:
+    - Todas las rutas de `/api` de cada servicio: `RATE_LIMIT_MAX` peticiones por `RATE_LIMIT_WINDOW_SECONDS` (300 cada 15 minutos por defecto). `/health` y la referencia de la API nunca se limitan.
+    - Login, en `auth-api`: `LOGIN_RATE_LIMIT_MAX` intentos fallidos por `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (10 cada 15 minutos por defecto). Los logins exitosos no cuentan, así quien se equivoca una vez no queda bloqueado, mientras que un ataque de fuerza bruta se detiene a los pocos intentos.
+    - La dirección del cliente se toma de `X-Forwarded-For` solo desde proxies de confianza, así la cabecera no se puede falsificar para esquivar el límite: en `auth-api`, `TRUST_PROXY` indica cuántos proxies hay delante (por defecto `0`, la cabecera se ignora); en `business-api`, uvicorn solo la lee desde las direcciones de `FORWARDED_ALLOW_IPS` (por defecto `127.0.0.1`).
     - Los contadores viven en la memoria de cada proceso, suficiente para una sola instancia; varias instancias necesitarían un almacén compartido como Redis.
 - Cabeceras de seguridad y orígenes CORS restringidos.
 - Validación de entradas en cada endpoint (Pydantic y zod).

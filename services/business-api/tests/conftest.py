@@ -20,6 +20,7 @@ from sqlalchemy.pool import StaticPool
 
 # Project imports
 from app.core.config import Environment, Settings
+from app.core.security import Permission
 from app.db.session import Database
 from app.main import create_app
 
@@ -210,6 +211,7 @@ def make_token(key_pair: tuple[str, str]) -> TokenFactory:
         payload: dict[str, Any] = {
             "sub": str(uuid4()),
             "role": "user",
+            "permissions": [permission.value for permission in Permission],
             "iss": ISSUER,
             "aud": AUDIENCE,
             "iat": now,
