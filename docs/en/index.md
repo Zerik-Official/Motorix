@@ -8,3 +8,4 @@ Motorix is an internal platform for a heavy mining engine repair shop. It centra
 - [Architecture](architecture.md): components, communication between services and design decisions.
 - [Security](security.md): authentication flow, JWT signing with RS256 and key management.
 - [Data model](data-model.md): databases, entities and relationships.
+- [Testing and CI](testing.md): test suites, end-to-end scenarios and GitHub Actions workflows.
