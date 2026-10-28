@@ -8,6 +8,21 @@ from uuid import UUID
 # Third-party
 from pydantic import BaseModel, ConfigDict, Field
 
+# Project imports
+from app.models.client import IdentificationType
+
+
+class EngineOwner(BaseModel):
+    """The owner fields an engine shows without a second request."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    identification_type: IdentificationType
+    identification_number: str
+    is_active: bool
+
 
 class EngineBase(BaseModel):
     """Fields an engine is created or fully replaced with."""
@@ -27,6 +42,11 @@ class EngineCreate(EngineBase):
 class EngineUpdate(EngineBase):
     """Body of `PUT /engines/{id}`."""
 
+    is_active: bool | None = Field(
+        default=None,
+        description="Set to true to reactivate or false to deactivate; omitted keeps the current state",
+    )
+
 
 class EngineRead(EngineBase):
     """Representation of an engine returned by the API."""
@@ -37,3 +57,4 @@ class EngineRead(EngineBase):
     is_active: bool
     registered_at: datetime
     updated_at: datetime
+    client: EngineOwner
