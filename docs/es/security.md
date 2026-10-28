@@ -10,10 +10,13 @@ sequenceDiagram
 
     W->>A: POST /api/v1/auth/login (correo, contraseña, token Turnstile)
     A->>A: Verifica Turnstile, rate limit, hash Argon2id
-    A-->>W: JWT (RS256, firmado con clave privada)
+    A-->>W: JWT de acceso (RS256, 15 min) + cookie de refresco httpOnly
     W->>B: GET /api/v1/... (Authorization: Bearer JWT)
     B->>B: Verifica firma, exp, iss, aud con la clave pública
     B-->>W: Recurso protegido
+    W->>A: POST /api/v1/auth/refresh (cookie de refresco)
+    A->>A: Rota el refresh token, resuelve los permisos actuales
+    A-->>W: Nuevo JWT de acceso + cookie de refresco rotada
 ```
 
 ## JWT con RS256
@@ -45,6 +48,19 @@ Claims incluidos en cada token:
 
 Rotación: se genera un par nuevo, se despliega la clave pública en `business-api` y luego la privada en `auth-api`. Los tokens firmados con la clave anterior expiran por sí solos.
 
+## Sesiones
+
+El token de acceso dura poco (`JWT_EXPIRES_IN_SECONDS`, 15 minutos por defecto) y la app web lo guarda **solo en memoria**, nunca en `localStorage` ni `sessionStorage`, así un script inyectado en la página no encuentra ningún token guardado que robar. Viaja como `Authorization: Bearer`, que es lo que verifica `business-api`.
+
+La sesión se mantiene con un **refresh token**:
+
+- Un valor aleatorio de 256 bits que solo viaja como la cookie `motorix_refresh`: `HttpOnly` (los scripts no pueden leerla), `Secure`, `SameSite=Strict` (otros sitios no pueden hacer que el navegador la envíe) y `Path=/api/v1/auth` (nunca llega a `business-api` ni a otra ruta).
+- Solo se guarda su hash SHA-256, en `refresh_tokens`. Un hash rápido basta porque el valor es aleatorio y largo; no es una contraseña.
+- `POST /api/v1/auth/refresh` lo cambia por un token de acceso nuevo, con los permisos que tiene el rol en ese momento, y lo **rota**: el token usado se revoca y uno nuevo ocupa su lugar. Al recargar la página, la app web lo llama para recuperar la sesión sin pedir la contraseña.
+- **Detección de reutilización**: los tokens de una sesión forman una familia. Presentar un token que ya fue rotado significa que alguien lo copió, así que se revoca toda la familia y tanto el atacante como el dueño deben iniciar sesión de nuevo. La revocación es un update condicional, así dos peticiones que compiten con el mismo token no pueden tener éxito las dos.
+- **Vida absoluta**: una sesión termina `REFRESH_TOKEN_TTL_SECONDS` después del login (12 horas por defecto, un turno de trabajo); la rotación nunca la alarga.
+- **Revocación**: `POST /api/v1/auth/logout` termina la sesión; desactivar una cuenta, restablecer su contraseña o cambiar la propia termina todas las sesiones de esa cuenta.
+
 ## Roles
 
 Los roles siguen una jerarquía estricta: `root` > `admin` > `user`. Un usuario solo puede gestionar cuentas con un rol inferior al suyo.
@@ -59,7 +75,7 @@ Los roles siguen una jerarquía estricta: `root` > `admin` > `user`. Un usuario 
 - Con solo dos roles, un admin podría desactivar a otro admin y la plataforma podría quedarse sin ningún administrador. Un único `root` por encima de ellos elimina ese estado sin reglas adicionales.
 - Existe exactamente un `root`. Sus credenciales se definen en el entorno de `auth-api` y se siembran al arrancar: la contraseña se cifra con Argon2id antes de guardarse, y la cuenta no se puede crear, modificar ni desactivar a través de la API.
 - Cambiar un rol exige estar por encima tanto del rol actual como del nuevo, así que un `admin` no puede ascender a un `user` a `admin` ni editar a otro `admin`. Las cuentas desactivadas se conservan, nunca se borran.
-- `auth-api` lee la cuenta del llamante y los permisos de su rol desde la base en cada request, así que una desactivación o un cambio de permisos se aplica ahí de inmediato. `business-api` solo ve el token, así que ahí se aplica cuando el token expira.
+- `auth-api` lee la cuenta del llamante y los permisos de su rol desde la base en cada request, así que una desactivación o un cambio de permisos se aplica ahí de inmediato. `business-api` solo ve el token, así que ahí se aplica cuando el token de acceso expira, como mucho 15 minutos después por defecto: una cuenta desactivada no puede renovarlo, porque sus sesiones quedan revocadas, y tras un cambio de permisos el token renovado trae la lista nueva.
 
 ## Permisos
 
@@ -88,7 +104,7 @@ Un rol solo limita hasta dónde puede llegar una cuenta administrando otras cuen
 - Nadie puede otorgar ni revocar un permiso que no tiene. Si no fuera así, cuando `root` le quitara `clients:write` a `admin`, un `admin` todavía podría dárselo a `user`.
 - Los permisos de `root` están fijos en el código como "todos los permisos" y nunca se leen de `role_permissions`; la base de datos rechaza filas para `root` y la API rechaza cualquier intento de modificarlos.
 
-**Cómo llega a `business-api`.** Al iniciar sesión, `auth-api` resuelve los permisos actuales de la cuenta (leídos de `role_permissions`, o el catálogo completo para `root`) y los incluye como claim `permissions` en el JWT. `business-api` sigue verificando firma, `exp`, `iss` y `aud` como siempre, y además comprueba que ese claim contenga el permiso que exige cada endpoint. Como la lista viaja dentro del token, revocar un permiso solo tiene efecto la próxima vez que la cuenta inicia sesión, la misma concesión que ya se acepta para el claim `role`; así `business-api` nunca necesita llamar de vuelta a `auth-api` para resolver autorización.
+**Cómo llega a `business-api`.** Al iniciar sesión, `auth-api` resuelve los permisos actuales de la cuenta (leídos de `role_permissions`, o el catálogo completo para `root`) y los incluye como claim `permissions` en el JWT. `business-api` sigue verificando firma, `exp`, `iss` y `aud` como siempre, y además comprueba que ese claim contenga el permiso que exige cada endpoint. Como la lista viaja dentro del token, revocar un permiso solo tiene efecto en `business-api` cuando la app web renueva su token de acceso, como mucho 15 minutos después con el `JWT_EXPIRES_IN_SECONDS` por defecto, la misma concesión que se acepta para el claim `role`; así `business-api` nunca necesita llamar de vuelta a `auth-api` para resolver autorización.
 
 **Endpoints.** Todos exigen `permissions:manage`:
 
