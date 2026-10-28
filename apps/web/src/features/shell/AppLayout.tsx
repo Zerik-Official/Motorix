@@ -8,6 +8,9 @@ import { BrandMark } from "@shared/components/BrandMark";
 import { useSession } from "@shared/session/useSession";
 import { ThemeToggle } from "@shared/theme/ThemeToggle";
 
+import { AppTourProvider } from "../tour/AppTourProvider";
+import { TourButton } from "../tour/TourButton";
+
 import { AccountMenu } from "./components/AccountMenu";
 import { NAV_ITEMS, type NavItem } from "./navigation";
 
@@ -40,64 +43,68 @@ export function AppLayout() {
   const items: NavItem[] = NAV_ITEMS.filter((item) => !item.permission || can(item.permission));
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <a
-        href="#main"
-        className="sr-only z-50 rounded-md bg-accent px-3 py-2 font-semibold text-accent-fg focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
-      >
-        Saltar al contenido
-      </a>
-      <header className="sticky top-0 z-30 border-b border-line bg-panel/95 backdrop-blur supports-[backdrop-filter]:bg-panel/85">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="xl:hidden"
-            onClick={() => setMenuOpenedAt(menuOpen ? null : location.pathname)}
-            aria-expanded={menuOpen}
-            aria-controls="mobile-nav"
-            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-          >
-            {menuOpen ? <LuX aria-hidden /> : <LuMenu aria-hidden />}
-          </Button>
-          <Link to="/app" aria-label="Motorix, ir al tablero" className="rounded-md">
-            <BrandMark />
-          </Link>
-          <nav aria-label="Secciones" className="ml-4 hidden xl:block">
-            <ul className="flex items-center gap-1">
-              {items.map((item) => (
-                <li key={item.to}>
-                  <NavLink to={item.to} end={item.to === "/app"} className={navLinkClass} data-tour={item.tourId}>
-                    <item.icon aria-hidden className="size-4" />
-                    {item.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="ml-auto flex items-center gap-1.5">
-            <ThemeToggle />
-            <AccountMenu />
+    <AppTourProvider>
+      <div className="flex min-h-dvh flex-col">
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-md bg-accent px-3 py-2 font-semibold text-accent-fg focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        >
+          Saltar al contenido
+        </a>
+        <header className="sticky top-0 z-30 border-b border-line bg-panel/95 backdrop-blur supports-[backdrop-filter]:bg-panel/85">
+          <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="xl:hidden"
+              data-tour="menu-toggle"
+              onClick={() => setMenuOpenedAt(menuOpen ? null : location.pathname)}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
+              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+            >
+              {menuOpen ? <LuX aria-hidden /> : <LuMenu aria-hidden />}
+            </Button>
+            <Link to="/app" aria-label="Motorix, ir al tablero" className="rounded-md" data-tour="brand">
+              <BrandMark />
+            </Link>
+            <nav aria-label="Secciones" className="ml-4 hidden xl:block" data-tour="navigation">
+              <ul className="flex items-center gap-1">
+                {items.map((item) => (
+                  <li key={item.to}>
+                    <NavLink to={item.to} end={item.to === "/app"} className={navLinkClass} data-tour={item.tourId}>
+                      <item.icon aria-hidden className="size-4" />
+                      {item.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            <div className="ml-auto flex items-center gap-1.5">
+              <TourButton />
+              <ThemeToggle />
+              <AccountMenu />
+            </div>
           </div>
-        </div>
-        {menuOpen && (
-          <nav id="mobile-nav" aria-label="Secciones" className="border-t border-line px-4 py-3 xl:hidden">
-            <ul className="flex flex-col gap-1">
-              {items.map((item) => (
-                <li key={item.to}>
-                  <NavLink to={item.to} end={item.to === "/app"} className={navLinkClass}>
-                    <item.icon aria-hidden className="size-4" />
-                    {item.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-      </header>
-      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-10">
-        <Outlet />
-      </main>
-    </div>
+          {menuOpen && (
+            <nav id="mobile-nav" aria-label="Secciones" className="border-t border-line px-4 py-3 xl:hidden">
+              <ul className="flex flex-col gap-1">
+                {items.map((item) => (
+                  <li key={item.to}>
+                    <NavLink to={item.to} end={item.to === "/app"} className={navLinkClass}>
+                      <item.icon aria-hidden className="size-4" />
+                      {item.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+        </header>
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-10">
+          <Outlet />
+        </main>
+      </div>
+    </AppTourProvider>
   );
 }
