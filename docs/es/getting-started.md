@@ -280,6 +280,7 @@ El servicio corre sobre el runtime de Bun, que además cifra las contraseñas co
    | `JWT_ISSUER` | No | Claim `iss` de cada token. Debe coincidir con `JWT_ISSUER` de `business-api`. |
    | `JWT_AUDIENCE` | No | Claim `aud` de cada token. Debe coincidir con `JWT_AUDIENCE` de `business-api`. |
    | `JWT_EXPIRES_IN_SECONDS` | No | Duración del token. Por defecto `3600`. |
+   | `MAX_PAGE_SIZE` | No | Límite superior del parámetro `limit`. Por defecto `100`. |
    | `ROOT_EMAIL` | Sí | Correo de la única cuenta `root`. |
    | `ROOT_PASSWORD` | Sí | Contraseña de `root`, de al menos 12 caracteres. |
    | `ROOT_FULL_NAME` | No | Nombre visible de `root`. Por defecto `Root`. |
