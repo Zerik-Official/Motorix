@@ -69,7 +69,11 @@ def get_jwt_verifier(request: Request) -> JwtVerifier:
 
 async def get_session(database: Annotated[Database, Depends(get_database)]) -> AsyncIterator[AsyncSession]:
     """
-    Open a session for the request, committed when the request succeeds.
+    Open a session for the request, committed when the endpoint succeeds.
+
+    It must be injected through `SessionDep`, whose `scope="function"` commits before the response is
+    sent: with the default request scope, the commit would run after the client already got its
+    answer, so the next request could miss the new rows and a failed commit would follow a success.
 
     Args:
         database: Application database.
@@ -79,6 +83,9 @@ async def get_session(database: Annotated[Database, Depends(get_database)]) -> A
     """
     async for session in database.session():
         yield session
+
+
+SessionDep = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 def get_current_user(
@@ -158,7 +165,7 @@ class PageParams:
         self.offset: int = offset
 
 
-def get_client_service(session: Annotated[AsyncSession, Depends(get_session)]) -> ClientService:
+def get_client_service(session: SessionDep) -> ClientService:
     """
     Build the client service bound to the session of the request.
 
@@ -171,7 +178,7 @@ def get_client_service(session: Annotated[AsyncSession, Depends(get_session)]) -
     return ClientService(ClientRepository(session))
 
 
-def get_engine_service(session: Annotated[AsyncSession, Depends(get_session)]) -> EngineService:
+def get_engine_service(session: SessionDep) -> EngineService:
     """
     Build the engine service bound to the session of the request.
 
@@ -184,7 +191,7 @@ def get_engine_service(session: Annotated[AsyncSession, Depends(get_session)]) -
     return EngineService(EngineRepository(session), ClientRepository(session))
 
 
-def get_repair_order_service(session: Annotated[AsyncSession, Depends(get_session)]) -> RepairOrderService:
+def get_repair_order_service(session: SessionDep) -> RepairOrderService:
     """
     Build the repair order service bound to the session of the request.
 
@@ -197,7 +204,6 @@ def get_repair_order_service(session: Annotated[AsyncSession, Depends(get_sessio
     return RepairOrderService(RepairOrderRepository(session), EngineRepository(session))
 
 
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 ClientsReadDep = Annotated[CurrentUser, Depends(require_permission(Permission.CLIENTS_READ))]
 ClientsWriteDep = Annotated[CurrentUser, Depends(require_permission(Permission.CLIENTS_WRITE))]
