@@ -15,6 +15,8 @@ from app.core.config import Settings
 from app.core.errors import AuthenticationError, PermissionDeniedError
 from app.core.security import CurrentUser, JwtVerifier, Role
 from app.db.session import Database
+from app.repositories.client import ClientRepository
+from app.services.client import ClientService
 
 bearer_scheme: HTTPBearer = HTTPBearer(auto_error=False, description="Access token issued by auth-api")
 
@@ -150,6 +152,20 @@ class PageParams:
         self.offset: int = offset
 
 
+def get_client_service(session: Annotated[AsyncSession, Depends(get_session)]) -> ClientService:
+    """
+    Build the client service bound to the session of the request.
+
+    Args:
+        session: Session of the current request.
+
+    Returns:
+        The client service.
+    """
+    return ClientService(ClientRepository(session))
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 PageParamsDep = Annotated[PageParams, Depends()]
+ClientServiceDep = Annotated[ClientService, Depends(get_client_service)]
