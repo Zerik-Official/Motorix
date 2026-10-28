@@ -139,11 +139,21 @@ Instala Python 3.12 o superior desde [python.org](https://www.python.org/downloa
 
    Cada componente tiene su propio `.env.example` dentro de su carpeta. Sus variables se describen en la sección de ese componente más abajo.
 
-4. Genera el par de claves RS256 para firmar y verificar los JWT:
+4. Genera el par de claves RS256 para firmar y verificar los JWT.
+
+   En Linux, macOS, WSL o Git Bash:
 
    ```bash
    sh infrastructure/scripts/generate-jwt-keys.sh
    ```
+
+   En Windows PowerShell (usa `openssl` del `PATH` o el incluido con Git for Windows):
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File infrastructure\scripts\generate-jwt-keys.ps1
+   ```
+
+   Ambos scripts aceptan un directorio de salida opcional y se niegan a sobrescribir claves existentes.
 
    La clave privada (`secrets/jwt/private.pem`) solo la usa `auth-api`; la clave pública (`secrets/jwt/public.pem`) la usa `business-api`. Git ignora la carpeta `secrets/`.
 

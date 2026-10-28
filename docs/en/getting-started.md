@@ -139,11 +139,21 @@ Install Python 3.12 or later from [python.org](https://www.python.org/downloads/
 
    Each component has its own `.env.example` inside its folder. Its variables are described in the section of that component below.
 
-4. Generate the RS256 key pair used to sign and verify JWTs:
+4. Generate the RS256 key pair used to sign and verify JWTs.
+
+   On Linux, macOS, WSL or Git Bash:
 
    ```bash
    sh infrastructure/scripts/generate-jwt-keys.sh
    ```
+
+   On Windows PowerShell (uses `openssl` from the `PATH` or the one bundled with Git for Windows):
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File infrastructure\scripts\generate-jwt-keys.ps1
+   ```
+
+   Both scripts accept an optional output directory and refuse to overwrite existing keys.
 
    The private key (`secrets/jwt/private.pem`) is used only by `auth-api`; the public key (`secrets/jwt/public.pem`) is used by `business-api`. The `secrets/` folder is ignored by Git.
 
