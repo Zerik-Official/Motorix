@@ -9,10 +9,12 @@ import helmet from "helmet";
 import { accessLog } from "./core/access-log";
 import type { Settings } from "./core/config";
 import { errorHandler, notFoundHandler } from "./core/errors";
+import type { CaptchaVerifier } from "./core/security/captcha";
 import type { JwtIssuer } from "./core/security/jwt-issuer";
 import type { JwtVerifier } from "./core/security/jwt-verifier";
 import type { PasswordHasher } from "./core/security/password-hasher";
 import { authenticate } from "./middleware/authenticate";
+import { createRateLimiter } from "./middleware/rate-limit";
 import type { RolePermissionRepository } from "./repositories/role-permission.repository";
 import type { UserRepository } from "./repositories/user.repository";
 import { authRouter } from "./routes/auth.routes";
@@ -31,6 +33,7 @@ export interface AppContext {
   database: Pingable;
   jwtIssuer: JwtIssuer;
   jwtVerifier: JwtVerifier;
+  captcha: CaptchaVerifier;
   users: UserRepository;
   rolePermissions: RolePermissionRepository;
   hasher: PasswordHasher;
@@ -43,20 +46,36 @@ export interface AppContext {
  * @returns The configured application.
  */
 export function createApp(context: AppContext): Express {
+  const { settings } = context;
   const permissionService: PermissionService = new PermissionService(context.rolePermissions);
-  const userService: UserService = new UserService(context.users, context.hasher, context.settings.maxPageSize);
-  const authService: AuthService = new AuthService(context.users, context.hasher, permissionService, context.jwtIssuer);
+  const userService: UserService = new UserService(context.users, context.hasher, settings.maxPageSize);
+  const authService: AuthService = new AuthService(
+    context.users,
+    context.hasher,
+    permissionService,
+    context.jwtIssuer,
+    context.captcha,
+  );
   const authenticated: RequestHandler = authenticate(context.jwtVerifier, context.users, permissionService);
+  const apiLimiter: RequestHandler = createRateLimiter({
+    windowSeconds: settings.rateLimit.windowSeconds,
+    limit: settings.rateLimit.max,
+  });
+  const loginLimiter: RequestHandler = createRateLimiter({
+    windowSeconds: settings.rateLimit.loginWindowSeconds,
+    limit: settings.rateLimit.loginMax,
+    skipSuccessfulRequests: true,
+  });
 
   const app: Express = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", 1);
+  app.set("trust proxy", settings.trustProxy);
   app.locals.context = context;
   app.use(helmet());
-  if (context.settings.corsOrigins.length > 0) {
+  if (settings.corsOrigins.length > 0) {
     app.use(
       cors({
-        origin: context.settings.corsOrigins,
+        origin: settings.corsOrigins,
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
         allowedHeaders: ["Authorization", "Content-Type"],
@@ -66,7 +85,8 @@ export function createApp(context: AppContext): Express {
   app.use(express.json({ limit: "100kb" }));
   app.use(accessLog);
   app.use(healthRouter(context.database));
-  app.use("/api/v1/auth", authRouter(authService));
+  app.use("/api", apiLimiter);
+  app.use("/api/v1/auth", authRouter(authService, loginLimiter));
   app.use("/api/v1/users", userRouter(userService, authenticated));
   app.use(notFoundHandler);
   app.use(errorHandler);
