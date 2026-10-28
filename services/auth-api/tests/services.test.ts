@@ -53,23 +53,16 @@ describe("RootAccountService", () => {
     expect(await hasher.verify(CREDENTIALS.password, root?.passwordHash ?? "")).toBe(true);
   });
 
-  test("leaves root unchanged when the environment did not change", async () => {
+  test("leaves an existing root as it is, even when ROOT_* changed", async () => {
     await service.ensureRoot(CREDENTIALS);
-    expect(await service.ensureRoot(CREDENTIALS)).toBe("unchanged");
-  });
+    const before: UserRecord = (await users.findRoot()) as UserRecord;
 
-  test("applies new credentials and reactivates root", async () => {
-    await service.ensureRoot(CREDENTIALS);
-    const root: UserRecord = (await users.findRoot()) as UserRecord;
-    await users.update(root.id, { isActive: false });
+    const result = await service.ensureRoot({ email: "admin@motorix.local", password: "another-long-password", fullName: "Other" });
 
-    const result = await service.ensureRoot({ ...CREDENTIALS, email: "admin@motorix.local", password: "another-long-password" });
-
-    const updated: UserRecord = (await users.findRoot()) as UserRecord;
-    expect(result).toBe("updated");
-    expect(updated.email).toBe("admin@motorix.local");
-    expect(updated.isActive).toBe(true);
-    expect(await hasher.verify("another-long-password", updated.passwordHash)).toBe(true);
+    const after: UserRecord = (await users.findRoot()) as UserRecord;
+    expect(result).toBe("existing");
+    expect(after).toEqual(before);
+    expect(await hasher.verify(CREDENTIALS.password, after.passwordHash)).toBe(true);
     expect(users.users.size).toBe(1);
   });
 

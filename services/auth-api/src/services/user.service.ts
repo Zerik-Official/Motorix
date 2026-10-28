@@ -175,16 +175,14 @@ export class UserService {
 
   /**
    * Changes the caller's own password after checking the current one, and ends every session of the
-   * account, so a stolen session does not survive the change; `root` changes it in the environment.
+   * account, so a stolen session does not survive the change. `root` uses it too, since `ROOT_PASSWORD`
+   * only sets its first password.
    *
    * @param caller - Authenticated account.
    * @param data - Current and new password.
-   * @throws BusinessRuleError For `root`, when the current password is wrong, or when the new one equals it.
+   * @throws BusinessRuleError When the current password is wrong, or when the new one equals it.
    */
   async changeOwnPassword(caller: Caller, data: PasswordChangeInput): Promise<void> {
-    if (caller.role === "root") {
-      throw new BusinessRuleError("The password of root is managed through ROOT_PASSWORD");
-    }
     const user: UserRecord = await this.find(caller.id);
     if (!(await this.hasher.verify(data.current_password, user.passwordHash))) {
       throw new BusinessRuleError("The current password is not correct", { field: "current_password" });

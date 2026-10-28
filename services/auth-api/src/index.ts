@@ -43,7 +43,7 @@ async function main(): Promise<void> {
   const users: PrismaUserRepository = new PrismaUserRepository(database.client);
   const hasher: PasswordHasher = new PasswordHasher();
   const seed: RootSeedResult = await new RootAccountService(users, hasher).ensureRoot(settings.root);
-  log(seed === "unchanged" ? "INFO" : "SUCCESS", `Root account ${seed}`);
+  log(seed === "created" ? "SUCCESS" : "INFO", seed === "created" ? "Root account created from ROOT_*" : "Root account already exists; ROOT_* is ignored");
 
   const captcha: CaptchaVerifier = settings.turnstile.secretKey
     ? new TurnstileVerifier(settings.turnstile.secretKey, settings.turnstile.verifyUrl)

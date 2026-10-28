@@ -306,11 +306,13 @@ describe("PUT /api/v1/users/me/password", () => {
     expect(repeated.status).toBe(422);
   });
 
-  test("refuses it for root, whose password lives in the environment", async () => {
+  test("lets root change its own password, since the environment only sets the first one", async () => {
     const response: Response = await request(app)
       .put("/api/v1/users/me/password")
       .set("Authorization", bearer("root"))
-      .send({ current_password: PASSWORD, new_password: "a-brand-new-password" });
-    expect(response.status).toBe(422);
+      .send({ current_password: PASSWORD, new_password: "a-brand-new-root-password" });
+    expect(response.status).toBe(204);
+    const stored = await context.users.findById(accounts.root.id);
+    expect(await context.hasher.verify("a-brand-new-root-password", stored?.passwordHash ?? "")).toBe(true);
   });
 });

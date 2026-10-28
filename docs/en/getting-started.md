@@ -300,7 +300,7 @@ The service runs on the Bun runtime, which also hashes passwords with its built-
    | `LOG_TO_FILE` | No | Copy logs to `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Defaults to `true`. |
    | `LOG_DIR` | No | Folder of the log files, relative to the service folder. Defaults to `logs`. |
 
-   `root` is seeded on every start from `ROOT_*`: it is created the first time, and later changes to these variables are applied to the account. It cannot be changed through the API.
+   `root` is created from `ROOT_*` the first time the service starts, and those variables are ignored from then on: changing them later has no effect. `root` changes its own password with `PUT /api/v1/users/me/password`, so `ROOT_PASSWORD` can be removed from the environment once it is changed. Nobody can edit or deactivate `root` through the API.
 
 3. Apply the migrations and start the server:
 

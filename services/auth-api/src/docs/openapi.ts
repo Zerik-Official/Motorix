@@ -197,7 +197,7 @@ function registerPaths(registry: OpenAPIRegistry): void {
     responses: {
       204: { description: "Password changed" },
       401: unauthorized,
-      422: json("Invalid body, wrong current password, same password, or root", errorResponse),
+      422: json("Invalid body, wrong current password or same password", errorResponse),
       429: tooMany,
     },
   });
