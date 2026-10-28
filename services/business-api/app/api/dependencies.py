@@ -17,8 +17,10 @@ from app.core.security import CurrentUser, JwtVerifier, Role
 from app.db.session import Database
 from app.repositories.client import ClientRepository
 from app.repositories.engine import EngineRepository
+from app.repositories.repair_order import RepairOrderRepository
 from app.services.client import ClientService
 from app.services.engine import EngineService
+from app.services.repair_order import RepairOrderService
 
 bearer_scheme: HTTPBearer = HTTPBearer(auto_error=False, description="Access token issued by auth-api")
 
@@ -180,8 +182,22 @@ def get_engine_service(session: Annotated[AsyncSession, Depends(get_session)]) -
     return EngineService(EngineRepository(session), ClientRepository(session))
 
 
+def get_repair_order_service(session: Annotated[AsyncSession, Depends(get_session)]) -> RepairOrderService:
+    """
+    Build the repair order service bound to the session of the request.
+
+    Args:
+        session: Session of the current request.
+
+    Returns:
+        The repair order service.
+    """
+    return RepairOrderService(RepairOrderRepository(session), EngineRepository(session))
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 PageParamsDep = Annotated[PageParams, Depends()]
 ClientServiceDep = Annotated[ClientService, Depends(get_client_service)]
 EngineServiceDep = Annotated[EngineService, Depends(get_engine_service)]
+RepairOrderServiceDep = Annotated[RepairOrderService, Depends(get_repair_order_service)]
