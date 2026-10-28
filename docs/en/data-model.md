@@ -16,7 +16,16 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+    ROLE_PERMISSIONS {
+        enum role PK "admin | user"
+        string permission PK "resource:action"
+        timestamp granted_at
+    }
 ```
+
+- `users` and `role_permissions` share the `role` enum but have no foreign key: permissions belong to a role, not to an account.
+- A partial unique index on `users(role) WHERE role = 'root'` guarantees a single `root`.
+- `role_permissions` never holds rows for `root` (check constraint), whose permissions are the whole catalog, and only accepts permissions of the catalog. Its default rows are inserted by the initial migration.
 
 ## business_db (business-api)
 
