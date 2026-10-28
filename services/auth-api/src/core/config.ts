@@ -39,6 +39,8 @@ const settingsSchema = z.object({
   JWT_AUDIENCE: z.string().min(1).default("motorix-business-api"),
   JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(3600),
 
+  MAX_PAGE_SIZE: z.coerce.number().int().min(1).default(100),
+
   ROOT_EMAIL: z.email(),
   ROOT_PASSWORD: z.string().min(12),
   ROOT_FULL_NAME: z.string().min(1).max(150).default("Root"),
@@ -64,6 +66,7 @@ export interface Settings {
   host: string;
   port: number;
   corsOrigins: string[];
+  maxPageSize: number;
   database: {
     host: string;
     port: number;
@@ -140,6 +143,7 @@ export function loadSettings(env: Record<string, string | undefined> = process.e
     corsOrigins: raw.CORS_ORIGINS.split(",")
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
+    maxPageSize: raw.MAX_PAGE_SIZE,
     database: {
       host: raw.DB_HOST,
       port: raw.DB_PORT,
