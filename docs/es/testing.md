@@ -16,6 +16,7 @@ Ejecútalas en local:
 ```bash
 cd services/business-api && pytest
 cd services/auth-api && bun test
+cd apps/web && bun run test
 ```
 
 La suite extremo a extremo necesita los dos servicios corriendo. Lee sus URL y las credenciales de `root` de `AUTH_API_URL`, `BUSINESS_API_URL`, `ROOT_EMAIL` y `ROOT_PASSWORD`, que por defecto apuntan a los valores locales:
@@ -43,6 +44,7 @@ Crea sus propias cuentas, cliente, motor y órdenes con un sufijo único por eje
 | --- | --- | --- |
 | `business-api` | `services/business-api/**` | flake8, pytest, migraciones Alembic contra PostgreSQL, arranque del servidor y comprobación de `/health` |
 | `auth-api` | `services/auth-api/**` | ESLint, `tsc`, `bun test`, migraciones Prisma contra PostgreSQL, arranque del servidor, comprobación de `/health` y login como `root` |
+| `web` | `apps/web/**` | ESLint, `tsc`, Vitest, build de producción con Vite y una comprobación de que el build reemplazó todos los placeholders `%VITE_*%` de `index.html` |
 | `e2e` | `services/**`, `tests/e2e/**`, el script de inicialización de Postgres | Crea las dos bases con el mismo script de inicialización que Docker, verifica que el rol de cada servicio no puede abrir la base del otro, migra y arranca los dos servicios con un par de claves desechable, corre la suite extremo a extremo e imprime los logs de los servicios |
 | `docs` | `docs/**`, `mkdocs.yml` | `mkdocs build --strict`, y despliegue en GitHub Pages en `main` |
 

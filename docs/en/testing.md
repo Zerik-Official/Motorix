@@ -16,6 +16,7 @@ Run them locally:
 ```bash
 cd services/business-api && pytest
 cd services/auth-api && bun test
+cd apps/web && bun run test
 ```
 
 The end-to-end suite needs both services running. It reads their URLs and the `root` credentials from `AUTH_API_URL`, `BUSINESS_API_URL`, `ROOT_EMAIL` and `ROOT_PASSWORD`, which default to the local values:
@@ -43,6 +44,7 @@ It creates its own accounts, client, engine and orders with a suffix unique to e
 | --- | --- | --- |
 | `business-api` | `services/business-api/**` | flake8, pytest, Alembic migrations against PostgreSQL, start the server and check `/health` |
 | `auth-api` | `services/auth-api/**` | ESLint, `tsc`, `bun test`, Prisma migrations against PostgreSQL, start the server, check `/health` and log in as `root` |
+| `web` | `apps/web/**` | ESLint, `tsc`, Vitest, production build with Vite, and a check that the build replaced every `%VITE_*%` placeholder of `index.html` |
 | `e2e` | `services/**`, `tests/e2e/**`, the Postgres init script | Create both databases with the same init script as Docker, verify that each service role cannot open the other database, migrate and start both services with a throwaway key pair, run the end-to-end suite, print the service logs |
 | `docs` | `docs/**`, `mkdocs.yml` | `mkdocs build --strict`, and deploy to GitHub Pages on `main` |
 
