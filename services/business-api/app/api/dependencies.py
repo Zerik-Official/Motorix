@@ -16,7 +16,9 @@ from app.core.errors import AuthenticationError, PermissionDeniedError
 from app.core.security import CurrentUser, JwtVerifier, Role
 from app.db.session import Database
 from app.repositories.client import ClientRepository
+from app.repositories.engine import EngineRepository
 from app.services.client import ClientService
+from app.services.engine import EngineService
 
 bearer_scheme: HTTPBearer = HTTPBearer(auto_error=False, description="Access token issued by auth-api")
 
@@ -165,7 +167,21 @@ def get_client_service(session: Annotated[AsyncSession, Depends(get_session)]) -
     return ClientService(ClientRepository(session))
 
 
+def get_engine_service(session: Annotated[AsyncSession, Depends(get_session)]) -> EngineService:
+    """
+    Build the engine service bound to the session of the request.
+
+    Args:
+        session: Session of the current request.
+
+    Returns:
+        The engine service.
+    """
+    return EngineService(EngineRepository(session), ClientRepository(session))
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 PageParamsDep = Annotated[PageParams, Depends()]
 ClientServiceDep = Annotated[ClientService, Depends(get_client_service)]
+EngineServiceDep = Annotated[EngineService, Depends(get_engine_service)]
