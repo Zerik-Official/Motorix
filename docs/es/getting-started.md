@@ -281,9 +281,12 @@ El servicio corre sobre el runtime de Bun, que además cifra las contraseñas co
    | `JWT_PRIVATE_KEY` | Una de las dos | Clave privada PEM (PKCS#8) en línea, usada en lugar de la ruta en CI y servidores; acepta `\n` como salto de línea. |
    | `JWT_ISSUER` | No | Claim `iss` de cada token. Debe coincidir con `JWT_ISSUER` de `business-api`. |
    | `JWT_AUDIENCE` | No | Claim `aud` de cada token. Debe coincidir con `JWT_AUDIENCE` de `business-api`. |
-   | `JWT_EXPIRES_IN_SECONDS` | No | Duración del token. Por defecto `3600`. |
+   | `JWT_EXPIRES_IN_SECONDS` | No | Duración del token de acceso. Por defecto `900` (15 minutos). |
+   | `REFRESH_TOKEN_TTL_SECONDS` | No | Vida absoluta de una sesión, desde el login. Por defecto `43200` (12 horas). |
+   | `REFRESH_COOKIE_SECURE` | No | Envía la cookie de refresco solo por HTTPS. Por defecto `true` y debe seguir en `true` en `production`; los navegadores la aceptan en `http://localhost`. |
    | `MAX_PAGE_SIZE` | No | Límite superior del parámetro `limit`. Por defecto `100`. |
    | `TRUST_PROXY` | No | Número de proxies inversos delante del servicio, usado para leer la dirección del cliente de `X-Forwarded-For`. Por defecto `0`; usa `1` detrás de Nginx. |
+   | `DOCS_ENABLED` | No | Expone Swagger UI (`/docs`) y `/openapi.json`. Por defecto `true`. |
    | `TURNSTILE_SECRET_KEY` | En producción | Clave secreta de Cloudflare Turnstile. Vacía desactiva la verificación fuera de `production`; `1x0000000000000000000000000000000AA` siempre aprueba y `2x0000000000000000000000000000000AA` siempre falla. |
    | `TURNSTILE_VERIFY_URL` | No | Endpoint de validación de Turnstile. Por defecto el `siteverify` de Cloudflare. |
    | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX` | No | Peticiones permitidas por cliente en `/api`. Por defecto `300` cada `900` segundos. |
@@ -306,7 +309,7 @@ El servicio corre sobre el runtime de Bun, que además cifra las contraseñas co
    bun run dev
    ```
 
-   Compruébalo con `curl http://localhost:3000/health`.
+   Compruébalo con `curl http://localhost:3000/health` y abre la referencia de la API en `http://localhost:3000/docs`.
 
 4. Ejecuta el linter, la verificación de tipos y los tests:
 
