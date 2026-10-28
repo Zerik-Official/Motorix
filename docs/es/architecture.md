@@ -45,6 +45,8 @@ Ambas API siguen la misma estructura orientada a objetos por capas:
 
 Los routers nunca acceden directamente a la base de datos. Los servicios dependen de repositorios, lo que mantiene las reglas de negocio testeables y el almacenamiento reemplazable.
 
+Cada request de `business-api` es una unidad de trabajo: una sesión, confirmada cuando el endpoint termina bien y revertida cuando falla. El commit ocurre **antes** de enviar la respuesta (`scope="function"` en la dependencia de la sesión), así un cliente que recibe un `201` puede leer la fila nueva en su siguiente request, y un commit que falla le llega como error en lugar de como éxito. Un test registra el orden del commit y de la respuesta para que siga así.
+
 ## Decisiones de escalabilidad
 
 - **Listados paginados**: todo endpoint de listado está paginado con un tamaño de página máximo, así ninguna petición carga la tabla completa.
