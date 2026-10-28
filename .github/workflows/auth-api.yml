@@ -1,0 +1,96 @@
+name: auth-api
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "services/auth-api/**"
+      - ".github/workflows/auth-api.yml"
+  push:
+    branches: [dev, main]
+    paths:
+      - "services/auth-api/**"
+      - ".github/workflows/auth-api.yml"
+
+defaults:
+  run:
+    working-directory: services/auth-api
+
+env:
+  ENVIRONMENT: test
+  DB_HOST: localhost
+  DB_PORT: 5432
+  DB_NAME: auth_db
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  ROOT_EMAIL: root@motorix.ci
+  ROOT_PASSWORD: ci-root-password-0000
+  LOG_TO_FILE: "false"
+
+jobs:
+  lint-test-build:
+    name: Lint, type check, test and build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: auth_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install dependencies and generate the Prisma client
+        run: bun install --frozen-lockfile
+
+      - name: Lint with ESLint
+        run: bun run lint
+
+      - name: Type check with tsc
+        run: bun run typecheck
+
+      - name: Run the test suite
+        run: bun test
+
+      - name: Apply migrations against PostgreSQL
+        run: bun run db:migrate
+
+      - name: Generate a throwaway RS256 key pair for the build smoke test
+        run: openssl genrsa -out /tmp/private.pem 2048
+
+      - name: Build the application and verify it serves traffic and signs tokens
+        env:
+          JWT_PRIVATE_KEY_PATH: /tmp/private.pem
+        run: |
+          bun src/index.ts &
+          server_pid=$!
+          for attempt in $(seq 1 15); do
+            if curl --fail --silent http://localhost:3000/health; then
+              status=0
+              curl --fail --silent --show-error \
+                --header "Content-Type: application/json" \
+                --data "{\"email\":\"$ROOT_EMAIL\",\"password\":\"$ROOT_PASSWORD\"}" \
+                http://localhost:3000/api/v1/auth/login | grep --quiet '"access_token"' || status=1
+              kill "$server_pid"
+              exit "$status"
+            fi
+            sleep 1
+          done
+          echo "The service never became healthy" >&2
+          kill "$server_pid" 2>/dev/null || true
+          exit 1
