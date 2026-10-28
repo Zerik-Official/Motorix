@@ -33,7 +33,7 @@ interface PermissionMatrixProps {
  */
 export function PermissionMatrix({ catalog, roles, holds, pending, onToggle }: PermissionMatrixProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-panel">
+    <div className="overflow-x-auto rounded-lg border border-line bg-panel" data-tour="permission-matrix">
       <table className="w-full border-collapse text-sm">
         <caption className="sr-only">Permisos de cada rol</caption>
         <thead>

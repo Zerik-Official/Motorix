@@ -130,7 +130,7 @@ export function RepairOrdersPage() {
 
       <OrderFilters filters={filters} onChange={changeFilters} />
 
-      <section aria-labelledby="orders-results" aria-busy={first.loading} className="flex flex-col gap-4">
+      <section aria-labelledby="orders-results" aria-busy={first.loading} className="flex flex-col gap-4" data-tour="orders-results">
         <h2 id="orders-results" className="sr-only">
           Resultados
         </h2>

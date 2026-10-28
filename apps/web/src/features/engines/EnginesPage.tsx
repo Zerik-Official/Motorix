@@ -102,7 +102,7 @@ export function EnginesPage() {
 
       <EngineFilters filters={filters} onChange={changeFilters} />
 
-      <section aria-labelledby="engines-results" aria-busy={list.loading} className="flex flex-col gap-4">
+      <section aria-labelledby="engines-results" aria-busy={list.loading} className="flex flex-col gap-4" data-tour="engines-results">
         <h2 id="engines-results" className="sr-only">
           Resultados
         </h2>
