@@ -300,7 +300,7 @@ El servicio corre sobre el runtime de Bun, que además cifra las contraseñas co
    | `LOG_TO_FILE` | No | Copia los logs en `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Por defecto `true`. |
    | `LOG_DIR` | No | Carpeta de los logs, relativa a la carpeta del servicio. Por defecto `logs`. |
 
-   `root` se siembra en cada arranque desde `ROOT_*`: se crea la primera vez, y los cambios posteriores en estas variables se aplican a la cuenta. No se puede modificar por la API.
+   `root` se crea desde `ROOT_*` la primera vez que arranca el servicio, y a partir de ahí esas variables se ignoran: cambiarlas después no tiene efecto. `root` cambia su propia contraseña con `PUT /api/v1/users/me/password`, así que `ROOT_PASSWORD` se puede quitar del entorno una vez cambiada. Nadie puede editar ni desactivar a `root` por la API.
 
 3. Aplica las migraciones y arranca el servidor:
 
