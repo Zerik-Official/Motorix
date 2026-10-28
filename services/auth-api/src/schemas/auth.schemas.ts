@@ -12,6 +12,7 @@ import type { ProfileResponse } from "./user.schemas";
 export const loginSchema = z.strictObject({
   email: z.email().max(255).transform((value) => value.trim().toLowerCase()),
   password: z.string().min(1).max(128),
+  turnstile_token: z.string().min(1).max(2048).optional(),
 });
 
 /**
