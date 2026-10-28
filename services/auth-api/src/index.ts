@@ -4,13 +4,17 @@
 
 import type { Server } from "node:http";
 
+import type { Express } from "express";
+
 import { createApp } from "./app";
 import { databaseUrl, loadSettings, readPrivateKey, type Settings } from "./core/config";
 import { closeServiceLogs, setupServiceLogs } from "./core/log-files";
 import { configureLogging, log } from "./core/logging";
 import { JwtIssuer } from "./core/security/jwt-issuer";
+import { JwtVerifier } from "./core/security/jwt-verifier";
 import { PasswordHasher } from "./core/security/password-hasher";
 import { Database } from "./db/database";
+import { PrismaRolePermissionRepository } from "./repositories/role-permission.repository";
 import { PrismaUserRepository } from "./repositories/user.repository";
 import { RootAccountService, type RootSeedResult } from "./services/root-account.service";
 
@@ -25,21 +29,30 @@ async function main(): Promise<void> {
   }
   log("INFO", `Starting ${settings.appName} in ${settings.environment} environment`);
 
-  const jwtIssuer: JwtIssuer = await JwtIssuer.fromPem(readPrivateKey(settings), settings.jwt);
+  const privateKey: string = readPrivateKey(settings);
+  const jwtIssuer: JwtIssuer = await JwtIssuer.fromPem(privateKey, settings.jwt);
+  const jwtVerifier: JwtVerifier = await JwtVerifier.fromPrivatePem(privateKey, settings.jwt);
   const database: Database = new Database({ url: databaseUrl(settings), poolSize: settings.database.poolSize });
   if (!(await database.ping())) {
     log("CRITICAL", "The database is not reachable");
     process.exit(1);
   }
 
-  const rootService: RootAccountService = new RootAccountService(
-    new PrismaUserRepository(database.client),
-    new PasswordHasher(),
-  );
-  const seed: RootSeedResult = await rootService.ensureRoot(settings.root);
+  const users: PrismaUserRepository = new PrismaUserRepository(database.client);
+  const hasher: PasswordHasher = new PasswordHasher();
+  const seed: RootSeedResult = await new RootAccountService(users, hasher).ensureRoot(settings.root);
   log(seed === "unchanged" ? "INFO" : "SUCCESS", `Root account ${seed}`);
 
-  const server: Server = createApp({ settings, database, jwtIssuer }).listen(settings.port, settings.host, () => {
+  const app: Express = createApp({
+    settings,
+    database,
+    jwtIssuer,
+    jwtVerifier,
+    users,
+    rolePermissions: new PrismaRolePermissionRepository(database.client),
+    hasher,
+  });
+  const server: Server = app.listen(settings.port, settings.host, () => {
     log("SUCCESS", `Listening on http://${settings.host}:${settings.port}`);
   });
 
