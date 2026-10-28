@@ -94,7 +94,7 @@ The [getting started guide](docs/en/getting-started.md) covers installing Bun an
    sh infrastructure/scripts/generate-jwt-keys.sh
    ```
 
-   Keys are written to `secrets/jwt/`, which is ignored by Git.
+   On Windows PowerShell, use `infrastructure\scripts\generate-jwt-keys.ps1` instead. Keys are written to `secrets/jwt/`, which is ignored by Git.
 
 3. Start the stack:
 
