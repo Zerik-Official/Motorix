@@ -6,7 +6,7 @@ import type { PrismaClient } from "../generated/prisma/client";
 import type { Role } from "../core/security/roles";
 
 /**
- * Reads the permissions granted to each role.
+ * Reads and changes the permissions granted to each role.
  */
 export interface RolePermissionRepository {
   /**
@@ -14,6 +14,22 @@ export interface RolePermissionRepository {
    * @returns The stored permission names of the role.
    */
   listByRole(role: Role): Promise<string[]>;
+
+  /**
+   * Grants a permission to a role; granting one it already holds changes nothing.
+   *
+   * @param role - Role receiving the permission.
+   * @param permission - Permission granted.
+   */
+  grant(role: Role, permission: string): Promise<void>;
+
+  /**
+   * Revokes a permission from a role; revoking one it does not hold changes nothing.
+   *
+   * @param role - Role losing the permission.
+   * @param permission - Permission revoked.
+   */
+  revoke(role: Role, permission: string): Promise<void>;
 }
 
 /**
@@ -35,5 +51,21 @@ export class PrismaRolePermissionRepository implements RolePermissionRepository 
       select: { permission: true },
     });
     return rows.map((row) => row.permission);
+  }
+
+  /**
+   * @param role - Role receiving the permission.
+   * @param permission - Permission granted.
+   */
+  async grant(role: Role, permission: string): Promise<void> {
+    await this.client.rolePermission.createMany({ data: [{ role, permission }], skipDuplicates: true });
+  }
+
+  /**
+   * @param role - Role losing the permission.
+   * @param permission - Permission revoked.
+   */
+  async revoke(role: Role, permission: string): Promise<void> {
+    await this.client.rolePermission.deleteMany({ where: { role, permission } });
   }
 }

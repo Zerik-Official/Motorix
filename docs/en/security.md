@@ -90,7 +90,17 @@ A role only gates how far an account can go in managing other accounts (`4.1.6`)
 
 **How it reaches `business-api`.** At login, `auth-api` resolves the caller's current permissions (read from `role_permissions`, or the whole catalog for `root`) and embeds them as a `permissions` claim in the JWT. `business-api` keeps verifying signature, `exp`, `iss` and `aud` as always, and additionally checks that the claim contains the permission a given endpoint requires. Because the list travels inside the token, a revoked permission only takes effect the next time the account logs in, the same trade-off already accepted for the `role` claim; this keeps `business-api` from ever calling back into `auth-api` to resolve authorization.
 
-**Status.** `auth-api` already has the catalog, the `role_permissions` table with its defaults, the grant/revoke rules above and the `permissions` claim in every token it signs. Still pending: the grant/revoke endpoints and the `require_permission` dependency in `business-api`; until then every endpoint of `business-api` only requires a valid token, regardless of role.
+**Endpoints.** Every one requires `permissions:manage`:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/v1/roles` | The catalog and every role with its current permissions, flagging the ones the caller may change (`editable`) |
+| `PUT /api/v1/roles/{role}/permissions/{permission}` | Grant; granting a permission the role already holds changes nothing |
+| `DELETE /api/v1/roles/{role}/permissions/{permission}` | Revoke; revoking a permission the role does not hold changes nothing |
+
+Revoking a permission from `admin` does not remove it from `user`: each role keeps its own list, and `root` can revoke it from `user` directly. Every grant and revocation is logged with the account that made it.
+
+**Status.** Implemented in `auth-api`. Still pending: the `require_permission` dependency in `business-api`; until then every endpoint of `business-api` only requires a valid token, regardless of role.
 
 ## Passwords
 

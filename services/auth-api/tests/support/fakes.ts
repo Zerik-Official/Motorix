@@ -124,6 +124,25 @@ export class InMemoryRolePermissionRepository implements RolePermissionRepositor
   async listByRole(role: Role): Promise<string[]> {
     return [...(this.rows[role] ?? [])];
   }
+
+  /**
+   * @param role - Role receiving the permission.
+   * @param permission - Permission granted.
+   */
+  async grant(role: Role, permission: string): Promise<void> {
+    const current: string[] = this.rows[role] ?? [];
+    if (!current.includes(permission)) {
+      this.rows[role] = [...current, permission];
+    }
+  }
+
+  /**
+   * @param role - Role losing the permission.
+   * @param permission - Permission revoked.
+   */
+  async revoke(role: Role, permission: string): Promise<void> {
+    this.rows[role] = (this.rows[role] ?? []).filter((stored) => stored !== permission);
+  }
 }
 
 /**

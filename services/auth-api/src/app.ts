@@ -19,6 +19,7 @@ import type { RolePermissionRepository } from "./repositories/role-permission.re
 import type { UserRepository } from "./repositories/user.repository";
 import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health.routes";
+import { roleRouter } from "./routes/role.routes";
 import { userRouter } from "./routes/user.routes";
 import { AuthService } from "./services/auth.service";
 import type { Pingable } from "./services/health.service";
@@ -88,6 +89,7 @@ export function createApp(context: AppContext): Express {
   app.use("/api", apiLimiter);
   app.use("/api/v1/auth", authRouter(authService, loginLimiter));
   app.use("/api/v1/users", userRouter(userService, authenticated));
+  app.use("/api/v1/roles", roleRouter(permissionService, authenticated));
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
