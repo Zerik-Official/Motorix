@@ -35,7 +35,7 @@ class EngineService:
             data: Fields of the new engine.
 
         Returns:
-            The persisted engine.
+            The persisted engine with its owner.
 
         Raises:
             NotFoundError: When the owning client does not exist.
@@ -44,12 +44,12 @@ class EngineService:
         await self._require_client(data.client_id)
         if await self._repository.exists_with_serial_number(data.serial_number):
             raise ConflictError("An engine with this serial number already exists")
-        engine: Engine = Engine(**data.model_dump())
-        return await self._repository.add(engine)
+        engine: Engine = await self._repository.add(Engine(**data.model_dump()))
+        return await self.get(engine.id)
 
     async def get(self, engine_id: UUID) -> Engine:
         """
-        Fetch one engine.
+        Fetch one engine with its owner.
 
         Args:
             engine_id: Identifier of the engine.
@@ -60,7 +60,7 @@ class EngineService:
         Raises:
             NotFoundError: When no engine has this identifier.
         """
-        engine: Engine | None = await self._repository.get(engine_id)
+        engine: Engine | None = await self._repository.get_with_client(engine_id)
         if engine is None:
             raise NotFoundError("Engine not found")
         return engine
@@ -84,7 +84,7 @@ class EngineService:
             is_active: Keep only active or only inactive engines when set.
 
         Returns:
-            The page of engines and the total count of matches.
+            The page of engines with their owners and the total count of matches.
         """
         items: Sequence[Engine] = await self._repository.list_page(offset, limit, search, client_id, is_active)
         total: int = await self._repository.count_page(search, client_id, is_active)
@@ -96,10 +96,10 @@ class EngineService:
 
         Args:
             engine_id: Identifier of the engine.
-            data: New values of every editable field.
+            data: New values of every editable field; `is_active` is only changed when sent.
 
         Returns:
-            The updated engine.
+            The updated engine with its current owner.
 
         Raises:
             NotFoundError: When the engine or the referenced owner does not exist.
@@ -109,9 +109,10 @@ class EngineService:
         await self._require_client(data.client_id)
         if await self._repository.exists_with_serial_number(data.serial_number, exclude_id=engine.id):
             raise ConflictError("An engine with this serial number already exists")
-        for field, value in data.model_dump().items():
+        for field, value in data.model_dump(exclude_none=True).items():
             setattr(engine, field, value)
-        return await self._repository.save(engine)
+        await self._repository.save(engine)
+        return await self.get(engine.id)
 
     async def deactivate(self, engine_id: UUID) -> Engine:
         """
@@ -121,14 +122,15 @@ class EngineService:
             engine_id: Identifier of the engine.
 
         Returns:
-            The deactivated engine.
+            The deactivated engine with its owner.
 
         Raises:
             NotFoundError: When no engine has this identifier.
         """
         engine: Engine = await self.get(engine_id)
         engine.is_active = False
-        return await self._repository.save(engine)
+        await self._repository.save(engine)
+        return await self.get(engine.id)
 
     async def _require_client(self, client_id: UUID) -> None:
         """

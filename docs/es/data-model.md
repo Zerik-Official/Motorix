@@ -106,7 +106,7 @@ erDiagram
 - **Órdenes**: `order_number` único. El cliente se guarda en la orden como una foto del propietario al momento de la recepción, y debe coincidir con el propietario del motor al crear la orden.
 - **Estados**: `received` (Recibido), `in_diagnosis` (En diagnóstico), `awaiting_approval` (Esperando aprobación), `in_repair` (En reparación), `in_testing` (En pruebas), `finished` (Finalizado), `delivered` (Entregado). Cada cambio crea una fila en `repair_order_status_history`.
 - **Técnico**: se guarda como texto de referencia; no requiere cuenta de usuario.
-- **Borrado lógico**: clientes y motores se desactivan (`is_active = false`) en lugar de eliminarse, para conservar el historial de órdenes.
+- **Borrado lógico**: clientes y motores se desactivan (`is_active = false`) en lugar de eliminarse, para conservar el historial de órdenes. Una edición con `is_active: true` los reactiva; una edición sin `is_active` conserva el estado actual.
 
 ## Índices
 

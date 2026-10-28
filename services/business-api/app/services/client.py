@@ -89,7 +89,7 @@ class ClientService:
 
         Args:
             client_id: Identifier of the client.
-            data: New values of every editable field.
+            data: New values of every editable field; `is_active` is only changed when sent.
 
         Returns:
             The updated client.
@@ -105,7 +105,7 @@ class ClientService:
             exclude_id=client.id,
         ):
             raise ConflictError("A client with this identification already exists")
-        for field, value in data.model_dump().items():
+        for field, value in data.model_dump(exclude_none=True).items():
             setattr(client, field, value)
         return await self._repository.save(client)
 

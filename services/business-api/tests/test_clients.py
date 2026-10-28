@@ -227,3 +227,19 @@ async def test_deactivate_client_returns_404_when_missing(client: AsyncClient, m
     """Deactivating an identifier that does not exist returns 404."""
     response: Response = await _authorized(client, make_token, "DELETE", f"/api/v1/clients/{uuid4()}")
     assert response.status_code == 404
+
+
+async def test_update_can_reactivate_a_client(client: AsyncClient, make_token: Any) -> None:
+    """An update without `is_active` keeps a deactivated client inactive, and `is_active: true` reactivates it."""
+    created: Response = await _authorized(client, make_token, "POST", "/api/v1/clients", json=_client_payload())
+    client_id: str = created.json()["id"]
+    client_url: str = f"/api/v1/clients/{client_id}"
+    await _authorized(client, make_token, "DELETE", client_url)
+    fields: dict[str, Any] = {key: created.json()[key] for key in _client_payload()}
+
+    kept: Response = await _authorized(client, make_token, "PUT", client_url, json=fields)
+    assert kept.json()["is_active"] is False
+
+    reactivated: Response = await _authorized(client, make_token, "PUT", client_url, json={**fields, "is_active": True})
+    assert reactivated.status_code == 200
+    assert reactivated.json()["is_active"] is True

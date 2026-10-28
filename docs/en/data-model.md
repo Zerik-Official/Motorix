@@ -106,7 +106,7 @@ erDiagram
 - **Repair orders**: unique `order_number`. The client is stored on the order as a snapshot of the owner at reception, and must match the engine's owner when the order is created.
 - **Status**: `received`, `in_diagnosis`, `awaiting_approval`, `in_repair`, `in_testing`, `finished`, `delivered`. Every change creates a row in `repair_order_status_history`.
 - **Technician**: stored as reference text; no user account is required.
-- **Soft delete**: clients and engines are deactivated (`is_active = false`) instead of being removed, so the order history is preserved.
+- **Soft delete**: clients and engines are deactivated (`is_active = false`) instead of being removed, so the order history is preserved. An update with `is_active: true` reactivates them; an update without `is_active` keeps the current state.
 
 ## Indexes
 

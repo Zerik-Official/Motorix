@@ -7,6 +7,7 @@ from uuid import UUID
 
 # Third-party
 from sqlalchemy import ColumnElement, or_
+from sqlalchemy.orm import selectinload
 
 # Project imports
 from app.models.engine import Engine
@@ -17,6 +18,18 @@ class EngineRepository(BaseRepository[Engine]):
     """Reads and writes engines, including the duplicate serial number check."""
 
     model = Engine
+
+    async def get_with_client(self, engine_id: UUID) -> Engine | None:
+        """
+        Fetch one engine with its owner loaded in the same round trip.
+
+        Args:
+            engine_id: Identifier of the engine.
+
+        Returns:
+            The engine, or None when it does not exist.
+        """
+        return await self.get(engine_id, options=(selectinload(Engine.client),))
 
     async def exists_with_serial_number(self, serial_number: str, exclude_id: UUID | None = None) -> bool:
         """
@@ -53,10 +66,16 @@ class EngineRepository(BaseRepository[Engine]):
             is_active: Keep only active or only inactive engines when set.
 
         Returns:
-            The rows of the page, ordered by registration date.
+            The rows of the page, ordered by registration date, with their owners loaded in one batch.
         """
         filters: list[ColumnElement[bool]] = self._filters(search, client_id, is_active)
-        return await self.list(offset, limit, filters=filters, order_by=[Engine.registered_at.desc()])
+        return await self.list(
+            offset,
+            limit,
+            filters=filters,
+            order_by=[Engine.registered_at.desc()],
+            options=[selectinload(Engine.client)],
+        )
 
     async def count_page(
         self,
