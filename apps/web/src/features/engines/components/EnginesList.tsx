@@ -1,9 +1,37 @@
 import { Link } from "react-router";
 
 import { ActiveBadge } from "@shared/components/ActiveBadge";
+import { formatIdentification } from "@shared/domain/identification";
 import { formatDate } from "@shared/format";
+import { useSession } from "@shared/session/useSession";
 
-import type { Engine } from "../api";
+import type { Engine, EngineOwner } from "../api";
+
+/**
+ * Props of {@link OwnerName}.
+ */
+interface OwnerNameProps {
+  /** Owner to show. */
+  owner: EngineOwner;
+  /** Whether the name links to the client's detail. */
+  linked: boolean;
+}
+
+/**
+ * Name of the owner of an engine, linked to the client's detail when the role can read clients.
+ *
+ * @param props - Owner and whether to link it.
+ * @returns The name.
+ */
+function OwnerName({ owner, linked }: OwnerNameProps) {
+  return linked ? (
+    <Link to={`/app/clientes/${owner.id}`} className="text-fg underline-offset-4 hover:underline">
+      {owner.name}
+    </Link>
+  ) : (
+    <span className="text-fg">{owner.name}</span>
+  );
+}
 
 /**
  * Props of {@link EnginesList}.
@@ -13,16 +41,20 @@ interface EnginesListProps {
   engines: Engine[];
   /** Accessible name of the list. */
   label?: string;
+  /** Whether to show the owner; hidden when every engine has the same one. */
+  showOwner?: boolean;
 }
 
 /**
  * Engines as a table on wide screens and as cards on phones. The manufacturer and model link to
- * the engine's detail in both layouts.
+ * the engine's detail in both layouts, and the owner comes embedded in each engine.
  *
- * @param props - Engines to list and the name of the list.
+ * @param props - Engines to list, the name of the list and whether to show the owner.
  * @returns The list.
  */
-export function EnginesList({ engines, label = "Motores" }: EnginesListProps) {
+export function EnginesList({ engines, label = "Motores", showOwner = true }: EnginesListProps) {
+  const { can } = useSession();
+  const linkOwner: boolean = can("clients:read");
   return (
     <>
       <div className="hidden overflow-hidden rounded-lg border border-line bg-panel md:block">
@@ -32,6 +64,7 @@ export function EnginesList({ engines, label = "Motores" }: EnginesListProps) {
             <tr className="border-b border-line bg-raised/50 text-left text-xs text-fg-subtle">
               <th scope="col" className="px-4 py-2.5 font-medium">Motor</th>
               <th scope="col" className="px-4 py-2.5 font-medium">Serie</th>
+              {showOwner && <th scope="col" className="px-4 py-2.5 font-medium">Cliente</th>}
               <th scope="col" className="px-4 py-2.5 font-medium">Tipo</th>
               <th scope="col" className="px-4 py-2.5 font-medium">Potencia</th>
               <th scope="col" className="px-4 py-2.5 font-medium">Registrado</th>
@@ -47,8 +80,16 @@ export function EnginesList({ engines, label = "Motores" }: EnginesListProps) {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-fg-muted tabular">{engine.serial_number}</td>
+                {showOwner && (
+                  <td className="px-4 py-3">
+                    <OwnerName owner={engine.client} linked={linkOwner} />
+                    <span className="block text-xs text-fg-subtle tabular">
+                      {formatIdentification(engine.client.identification_type, engine.client.identification_number)}
+                    </span>
+                  </td>
+                )}
                 <td className="px-4 py-3 text-fg-muted">{engine.engine_type}</td>
-                <td className="px-4 py-3 text-fg-muted">{engine.power_rating}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-fg-muted">{engine.power_rating}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-fg-muted tabular">{formatDate(engine.registered_at)}</td>
                 <td className="px-4 py-3">
                   <ActiveBadge active={engine.is_active} />
@@ -69,6 +110,11 @@ export function EnginesList({ engines, label = "Motores" }: EnginesListProps) {
               <ActiveBadge active={engine.is_active} />
             </div>
             <p className="mt-1 text-sm text-fg-muted tabular">Serie {engine.serial_number}</p>
+            {showOwner && (
+              <p className="text-sm">
+                <OwnerName owner={engine.client} linked={linkOwner} />
+              </p>
+            )}
             <p className="text-sm text-fg-subtle">
               {engine.engine_type}, {engine.power_rating}
             </p>

@@ -3,11 +3,23 @@ import { businessApi } from "@shared/api/http";
 import { isActiveParam, type ActiveFilter, type OffsetPage } from "@shared/api/pagination";
 
 /**
- * Engine with its record dates.
+ * Owner of an engine, as embedded in every engine response.
+ */
+export interface EngineOwner {
+  id: string;
+  name: string;
+  identification_type: string;
+  identification_number: string;
+  is_active: boolean;
+}
+
+/**
+ * Engine with its record dates and its owner.
  */
 export interface Engine extends EngineOption {
   registered_at: string;
   updated_at: string;
+  client: EngineOwner;
 }
 
 /**
@@ -86,6 +98,24 @@ export async function createEngine(fields: EngineFields): Promise<Engine> {
  */
 export async function updateEngine(id: string, fields: EngineFields): Promise<Engine> {
   return (await businessApi.put<Engine>(`/engines/${id}`, fields)).data;
+}
+
+/**
+ * Reactivates an engine, keeping the rest of its fields.
+ *
+ * @param engine - Engine to reactivate.
+ * @returns The reactivated engine.
+ */
+export async function reactivateEngine(engine: Engine): Promise<Engine> {
+  const fields: EngineFields = {
+    serial_number: engine.serial_number,
+    manufacturer: engine.manufacturer,
+    model: engine.model,
+    engine_type: engine.engine_type,
+    power_rating: engine.power_rating,
+    client_id: engine.client_id,
+  };
+  return (await businessApi.put<Engine>(`/engines/${engine.id}`, { ...fields, is_active: true })).data;
 }
 
 /**

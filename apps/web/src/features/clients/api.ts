@@ -85,6 +85,22 @@ export async function updateClient(id: string, fields: ClientFields): Promise<Cl
 }
 
 /**
+ * Reactivates a client, keeping the rest of its fields.
+ *
+ * @param client - Client to reactivate.
+ * @returns The reactivated client.
+ */
+export async function reactivateClient(client: Client): Promise<Client> {
+  const fields: ClientFields = {
+    name: client.name,
+    identification_type: client.identification_type as IdentificationType,
+    identification_number: client.identification_number,
+    email: client.email,
+  };
+  return (await businessApi.put<Client>(`/clients/${client.id}`, { ...fields, is_active: true })).data;
+}
+
+/**
  * Deactivates a client; its record and history are kept.
  *
  * @param id - Identifier of the client.

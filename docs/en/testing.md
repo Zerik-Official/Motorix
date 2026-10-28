@@ -8,7 +8,7 @@ Every component is tested on its own, and both APIs are also tested together. Ea
 | --- | --- | --- | --- |
 | `business-api` | pytest + httpx | Token verification, permissions per endpoint, clients, engines, repair orders with keyset pagination and status history, rate limit | SQLite in memory, real SQL through the repositories |
 | `auth-api` | `bun test` + supertest | Settings, logger, roles and permission rules, JWT issuing and verification, Argon2id, root seeding, users, login, roles, Turnstile, rate limit | In-memory repositories behind the same interfaces as Prisma |
-| `web` | Vitest + Testing Library | Translation of API errors, shared refresh across callers with the token kept only in memory, permission gating, login form validation and its accessible messages, modal dialog behavior, the stage track, the order history, the status change form, the client and engine forms (validation and duplicates) and the numbered pagination | None: the session and the APIs are replaced in the tests |
+| `web` | Vitest + Testing Library | Translation of API errors, shared refresh across callers with the token kept only in memory, permission gating, login form validation and its accessible messages, modal dialog behavior, the stage track, the order history, the status change form, the client and engine forms (validation and duplicates), the engine owner column, the numbered pagination and the button classes of links | None: the session and the APIs are replaced in the tests |
 | End to end (`tests/e2e`) | `bun test` + `fetch` | Both services running against PostgreSQL, talking only through HTTP and the JWT | Real PostgreSQL |
 
 Run them locally:

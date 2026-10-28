@@ -14,6 +14,11 @@ import { formatIdentification } from "@shared/domain/identification";
 import { createEngine, updateEngine, type Engine, type EngineFields } from "../api";
 
 /**
+ * Client the engine belongs to: a search result, or the owner embedded in an engine.
+ */
+type OwnerChoice = Pick<ClientOption, "id" | "name" | "identification_type" | "identification_number">;
+
+/**
  * Rule of a required free text field of the engine.
  *
  * @param empty - Message when it is empty.
@@ -33,7 +38,7 @@ const engineSchema = z.object({
   model: text("Escribe el modelo.", 150),
   engine_type: text("Escribe el tipo de motor.", 150),
   power_rating: text("Escribe la potencia o capacidad.", 100),
-  owner: z.custom<ClientOption>((value) => value !== null, "Elige el cliente dueño del motor."),
+  owner: z.custom<OwnerChoice>((value) => value !== null, "Elige el cliente dueño del motor."),
 });
 
 /**
@@ -93,7 +98,7 @@ interface EngineFormModalProps {
   /** Engine to edit; omitted to register a new one. */
   engine?: Engine;
   /** Owner chosen when the modal opens: the current owner of the engine, or the client it is registered for. */
-  owner?: ClientOption | null;
+  owner?: OwnerChoice | null;
   /** Closes the modal. */
   onClose: () => void;
   /** Receives the saved engine. */
@@ -114,7 +119,7 @@ export function EngineFormModal({ engine, owner: initialOwner = null, onClose, o
   const [model, setModel] = useState<string>(engine?.model ?? "");
   const [engineType, setEngineType] = useState<string>(engine?.engine_type ?? "");
   const [powerRating, setPowerRating] = useState<string>(engine?.power_rating ?? "");
-  const [owner, setOwner] = useState<ClientOption | null>(initialOwner);
+  const [owner, setOwner] = useState<OwnerChoice | null>(initialOwner);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState<boolean>(false);
   const ownerChanged: boolean = Boolean(engine && owner && owner.id !== engine.client_id);
@@ -185,7 +190,7 @@ export function EngineFormModal({ engine, owner: initialOwner = null, onClose, o
           hint={ownerChanged ? "Las órdenes ya abiertas siguen a nombre del dueño anterior." : "Busca por nombre o número de identificación."}
           className="sm:col-span-2"
         >
-          <AsyncPicker<ClientOption>
+          <AsyncPicker<OwnerChoice>
             value={owner}
             onChange={setOwner}
             search={searchClients}
