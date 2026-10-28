@@ -8,6 +8,7 @@ Cada componente se prueba por separado, y las dos API también se prueban juntas
 | --- | --- | --- | --- |
 | `business-api` | pytest + httpx | Verificación del token, permisos por endpoint, clientes, motores, órdenes de reparación con paginación por cursor e historial de estados, rate limit | SQLite en memoria, SQL real a través de los repositorios |
 | `auth-api` | `bun test` + supertest | Configuración, logger, reglas de roles y permisos, emisión y verificación de JWT, Argon2id, sembrado de root, usuarios, login, roles, Turnstile, rate limit | Repositorios en memoria detrás de las mismas interfaces que Prisma |
+| `web` | Vitest + Testing Library | Traducción de errores de las API, refresh compartido entre llamadas con el token solo en memoria, visibilidad por permisos, validación del login y sus mensajes accesibles, comportamiento del modal | Ninguna: la sesión y las API se sustituyen en los tests |
 | Extremo a extremo (`tests/e2e`) | `bun test` + `fetch` | Los dos servicios corriendo contra PostgreSQL, comunicándose solo por HTTP y el JWT | PostgreSQL real |
 
 Ejecútalas en local:

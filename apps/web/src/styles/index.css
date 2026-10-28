@@ -1,0 +1,274 @@
+@import "tailwindcss";
+@import "@fontsource-variable/archivo/wdth.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens of Motorix. Every color, font and radius of the app comes from here:
+ * change a value in :root (light) or .dark and the whole interface follows.
+ *
+ * Palette, taken from the workshop rather than from a template:
+ * graphite (structure and text), steel grey (surfaces), safety yellow (the one main action
+ * and the active stage), machine green (finished work), oxide red (errors and blocked work)
+ * and steel blue (links and secondary emphasis).
+ */
+:root {
+  --graphite: #1e272c;
+  --steel: #e8ecec;
+  --safety: #f2b705;
+  --machine: #3e7c59;
+  --oxide: #b4432b;
+  --steel-blue: #3b5b73;
+
+  --canvas: var(--steel);
+  --panel: #f6f8f8;
+  --raised: #dde3e3;
+  --raised-2: #cfd7d8;
+  --line: #c9d1d2;
+  --line-strong: #a9b4b6;
+  --fg: var(--graphite);
+  --fg-muted: #44525a;
+  --fg-subtle: #5f6c72;
+  --fg-faint: #8b979c;
+
+  --accent: var(--safety);
+  --accent-fg: var(--graphite);
+  --link: var(--steel-blue);
+  --ok: var(--machine);
+  --ok-soft: #dcebe2;
+  --danger: var(--oxide);
+  --danger-soft: #f3dfda;
+  --warning: #9a6b00;
+  --warning-soft: #fbefc6;
+  --info: var(--steel-blue);
+  --info-soft: #dbe5ec;
+  --focus: #2f6f9f;
+
+  --stage-received: #6b7a82;
+  --stage-in_diagnosis: var(--steel-blue);
+  --stage-awaiting_approval: var(--oxide);
+  --stage-in_repair: #b98900;
+  --stage-in_testing: #7a6a1f;
+  --stage-finished: var(--machine);
+  --stage-delivered: #2d5c42;
+
+  --radius: 0.375rem;
+  --font-sans: "Archivo Variable", "Archivo", ui-sans-serif, system-ui, sans-serif;
+
+  --background: var(--canvas);
+  --foreground: var(--fg);
+  --popover: var(--panel);
+  --popover-foreground: var(--fg);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-fg);
+  --secondary: var(--raised);
+  --secondary-foreground: var(--fg);
+  --muted: var(--raised);
+  --muted-foreground: var(--fg-subtle);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--focus);
+  --destructive: var(--danger);
+
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #12181b;
+  --panel: #1a2226;
+  --raised: #232d32;
+  --raised-2: #2d393f;
+  --line: #2e3a40;
+  --line-strong: #43525a;
+  --fg: #e6ebeb;
+  --fg-muted: #b3bec2;
+  --fg-subtle: #8e9a9f;
+  --fg-faint: #66737a;
+
+  --accent: var(--safety);
+  --accent-fg: var(--graphite);
+  --link: #8db3cc;
+  --ok: #6fb38c;
+  --ok-soft: #1c3327;
+  --danger: #e07a62;
+  --danger-soft: #3a211b;
+  --warning: #e9c15a;
+  --warning-soft: #3a2f12;
+  --info: #8db3cc;
+  --info-soft: #1d2c37;
+  --focus: #8db3cc;
+
+  --stage-received: #93a3ab;
+  --stage-in_diagnosis: #8db3cc;
+  --stage-awaiting_approval: #e07a62;
+  --stage-in_repair: #f2b705;
+  --stage-in_testing: #d8c36a;
+  --stage-finished: #6fb38c;
+  --stage-delivered: #4f9a70;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-raised-2: var(--raised-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-link: var(--link);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-focus: var(--focus);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-variation-settings: "wdth" 100;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--canvas);
+    color: var(--fg);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  h1,
+  h2,
+  h3 {
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    color: var(--link);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  label[for],
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--safety) 45%, transparent);
+    color: var(--fg);
+  }
+}
+
+@utility font-wide {
+  font-variation-settings: "wdth" 125;
+  letter-spacing: -0.01em;
+}
+
+@utility font-narrow {
+  font-variation-settings: "wdth" 80;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.bay-route-marker {
+  top: calc(100% - 1.125rem);
+  animation: bay-route-travel 2.8s cubic-bezier(0.65, 0, 0.35, 1) 0.4s both;
+}
+
+@keyframes bay-route-travel {
+  from {
+    top: 1.125rem;
+  }
+  to {
+    top: calc(100% - 1.125rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bay-route-marker {
+    animation: none;
+  }
+
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--raised-2);
+  border-radius: 10px;
+  border: 2px solid var(--canvas);
+}
