@@ -225,6 +225,8 @@ psql -U postgres -h localhost -v ON_ERROR_STOP=1 \
    | `JWT_AUDIENCE` | No | Expected `aud` claim. Must match the audience of `auth-api`. |
    | `JWT_LEEWAY_SECONDS` | No | Clock skew tolerated on `exp` and `iat`. Defaults to `10`. |
    | `MAX_PAGE_SIZE` | No | Upper limit of the `limit` query parameter. Defaults to `100`. |
+   | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX` | No | Requests allowed per client on `/api`. Defaults to `300` per `900` seconds. |
+   | `FORWARDED_ALLOW_IPS` | No | Proxies whose `X-Forwarded-For` header uvicorn trusts to find the client address. Defaults to `127.0.0.1`; set the address of Nginx when it runs elsewhere. |
    | `LOG_LEVEL` | No | Minimum level printed: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` or `CRITICAL`. |
    | `LOG_VERBOSITY` | No | Highest verbosity printed; `1` shows only the most relevant lines. |
    | `LOG_SUPPRESS` | No | Levels or level/verbosity pairs never printed, such as `DEBUG:3,SUCCESS`. |
