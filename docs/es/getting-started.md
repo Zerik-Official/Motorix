@@ -175,7 +175,63 @@ El script de inicialización solo se ejecuta cuando el volumen de datos está va
 
 ### business-api
 
-Se documenta cuando se añada el servicio.
+1. Crea el entorno virtual e instala el servicio con sus herramientas de desarrollo:
+
+   ```bash
+   cd services/business-api
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -e ".[dev]"
+   ```
+
+   En Windows PowerShell, actívalo con `.venv\Scripts\Activate.ps1`.
+
+2. Crea el archivo de entorno y rellena las variables:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Obligatoria | Descripción |
+   | --- | --- | --- |
+   | `APP_NAME` | No | Nombre del servicio, y también de su carpeta de logs. Por defecto `business-api`. |
+   | `ENVIRONMENT` | No | `local`, `test`, `staging` o `production`. Por defecto `local`. |
+   | `HOST` / `PORT` | No | Dirección en la que escucha el servidor. Por defecto `0.0.0.0:8000`. |
+   | `DOCS_ENABLED` | No | Expone Swagger UI (`/docs`), ReDoc (`/redoc`) y `/openapi.json`. Por defecto `true`. |
+   | `CORS_ORIGINS` | No | Orígenes separados por comas que pueden llamar a la API, como la URL de la app web. |
+   | `DB_HOST` / `DB_PORT` | No | Dirección de PostgreSQL. Por defecto `localhost:5432`. |
+   | `DB_NAME` | Sí | Debe coincidir con `BUSINESS_DB_NAME` del `.env` raíz. |
+   | `DB_USER` | Sí | Debe coincidir con `BUSINESS_DB_USER` del `.env` raíz. |
+   | `DB_PASSWORD` | Sí | Debe coincidir con `BUSINESS_DB_PASSWORD` del `.env` raíz. |
+   | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | No | Tamaño del pool de conexiones. Por defecto `5` y `10`. |
+   | `DB_ECHO` | No | Imprime cada sentencia SQL. Por defecto `false`. |
+   | `JWT_PUBLIC_KEY_PATH` | Una de las dos | Ruta a la clave pública RS256, relativa a la carpeta del servicio. |
+   | `JWT_PUBLIC_KEY` | Una de las dos | Clave pública PEM en línea, usada en lugar de la ruta en CI y servidores; acepta `\n` como salto de línea. |
+   | `JWT_ISSUER` | No | Claim `iss` esperado. Debe coincidir con el emisor de `auth-api`. |
+   | `JWT_AUDIENCE` | No | Claim `aud` esperado. Debe coincidir con la audiencia de `auth-api`. |
+   | `JWT_LEEWAY_SECONDS` | No | Desfase de reloj tolerado en `exp` e `iat`. Por defecto `10`. |
+   | `MAX_PAGE_SIZE` | No | Límite superior del parámetro `limit`. Por defecto `100`. |
+   | `LOG_LEVEL` | No | Nivel mínimo que se imprime: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` o `CRITICAL`. |
+   | `LOG_VERBOSITY` | No | Verbosidad máxima que se imprime; `1` muestra solo las líneas más relevantes. |
+   | `LOG_SUPPRESS` | No | Niveles o pares nivel/verbosidad que nunca se imprimen, como `DEBUG:3,SUCCESS`. |
+   | `LOG_TO_FILE` | No | Copia los logs en `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Por defecto `true`. |
+   | `LOG_DIR` | No | Carpeta de los logs, relativa a la carpeta del servicio. Por defecto `logs`. |
+
+3. Aplica las migraciones y arranca el servidor:
+
+   ```bash
+   alembic upgrade head
+   python -m app
+   ```
+
+   Compruébalo con `curl http://localhost:8000/health` y abre la referencia de la API en `http://localhost:8000/docs`.
+
+4. Ejecuta el linter y los tests:
+
+   ```bash
+   flake8
+   pytest
+   ```
 
 ### auth-api
 
