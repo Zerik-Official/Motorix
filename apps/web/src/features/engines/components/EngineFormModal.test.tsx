@@ -49,6 +49,13 @@ function engine(): Engine {
     is_active: true,
     registered_at: "2026-10-28T10:00:00Z",
     updated_at: "2026-10-28T10:00:00Z",
+    client: {
+      id: OWNER.id,
+      name: OWNER.name,
+      identification_type: OWNER.identification_type,
+      identification_number: OWNER.identification_number,
+      is_active: true,
+    },
   };
 }
 
