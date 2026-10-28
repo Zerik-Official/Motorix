@@ -1,0 +1,374 @@
+# Primeros pasos
+
+Esta guía instala todas las herramientas que necesita Motorix, configura el entorno y levanta el stack.
+
+## Requisitos previos
+
+| Herramienta | Versión | Usada por |
+| --- | --- | --- |
+| Docker Engine + plugin de Compose | 24+ | Stack local (`compose.yaml`) |
+| Bun | 1.1+ | `services/auth-api`, `apps/web` |
+| Python | 3.12+ | `services/business-api`, documentación |
+| OpenSSL | 3+ | Generación del par de claves JWT |
+| Git | 2.40+ | Control de versiones |
+
+## Instalar Bun
+
+Si `bun` no está instalado, ejecuta el instalador oficial:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+Recarga la configuración de tu shell y verifica la instalación:
+
+```bash
+source ~/.bashrc
+bun --version
+```
+
+Si usas Zsh, ejecuta `source ~/.zshrc` en su lugar. Si el comando sigue sin encontrarse, añade el directorio de binarios de Bun a tu `PATH`:
+
+```bash
+echo 'export BUN_INSTALL="$HOME/.bun"' >> ~/.bashrc
+echo 'export PATH="$BUN_INSTALL/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+En Windows, usa PowerShell:
+
+```powershell
+powershell -c "irm bun.sh/install.ps1 | iex"
+```
+
+También puedes instalar Bun con Homebrew (`brew install oven-sh/bun/bun`) o npm (`npm install -g bun`). Verifica con `bun --version` antes de continuar.
+
+## Instalar Docker
+
+### Linux
+
+Instala Docker Engine y el plugin de Compose con el script oficial, y permite que tu usuario use Docker sin `sudo`:
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker "$USER"
+```
+
+Cierra sesión y vuelve a entrar, luego verifica con `docker compose version`.
+
+### macOS
+
+Instala [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) u [OrbStack](https://orbstack.dev/).
+
+### Windows sin Docker Desktop
+
+Docker Engine puede ejecutarse dentro de WSL2 sin Docker Desktop, con un consumo de recursos mucho menor. La distribución se puede guardar en cualquier disco, así el disco del sistema no necesita espacio libre para imágenes y volúmenes.
+
+1. Instala Ubuntu en el disco que prefieras (por ejemplo `D:`) desde PowerShell:
+
+   ```powershell
+   wsl --install Ubuntu-24.04 --name motorix --location D:\WSL\motorix
+   ```
+
+   Crea el usuario y la contraseña de Linux cuando se soliciten.
+
+2. Limita los recursos que puede usar WSL2 creando `%UserProfile%\.wslconfig`:
+
+   ```ini
+   [wsl2]
+   memory=3GB
+   processors=2
+   swap=1GB
+   ```
+
+   Aplica el cambio con `wsl --shutdown`.
+
+3. Abre la distribución e instala Docker Engine:
+
+   ```powershell
+   wsl -d motorix
+   ```
+
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   sudo usermod -aG docker "$USER"
+   ```
+
+4. Cierra la terminal, abre la distribución de nuevo y verifica:
+
+   ```bash
+   docker run --rm hello-world
+   docker compose version
+   ```
+
+Los discos de Windows están disponibles dentro de WSL en `/mnt`, así que el repositorio se puede usar desde `/mnt/c/...` o `/mnt/d/...`. Para un acceso a archivos más rápido, clónalo dentro del directorio home de Linux.
+
+## Instalar Python
+
+Instala Python 3.12 o superior desde [python.org](https://www.python.org/downloads/) o tu gestor de paquetes, y verifica con `python --version`.
+
+## Configuración del entorno
+
+1. Clona el repositorio y entra en él:
+
+   ```bash
+   git clone https://github.com/Zerik-Official/Motorix
+   cd Motorix
+   ```
+
+2. Crea el archivo de entorno raíz que usa Docker Compose:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Completa las variables:
+
+   | Variable | Requerida | Descripción |
+   | --- | --- | --- |
+   | `POSTGRES_USER` | Sí | Superusuario de PostgreSQL, usado solo para inicializar la instancia. |
+   | `POSTGRES_PASSWORD` | Sí | Contraseña del superusuario de PostgreSQL. |
+   | `POSTGRES_DB` | No | Base de mantenimiento del superusuario. Por defecto `postgres`. |
+   | `POSTGRES_PORT` | No | Puerto del host enlazado a `127.0.0.1`. Por defecto `5432`. |
+   | `AUTH_DB_NAME` | Sí | Base de datos de `auth-api`. |
+   | `AUTH_DB_USER` | Sí | Rol usado por `auth-api`; solo puede conectarse a su propia base. |
+   | `AUTH_DB_PASSWORD` | Sí | Contraseña del rol de `auth-api`. |
+   | `BUSINESS_DB_NAME` | Sí | Base de datos de `business-api`. |
+   | `BUSINESS_DB_USER` | Sí | Rol usado por `business-api`; solo puede conectarse a su propia base. |
+   | `BUSINESS_DB_PASSWORD` | Sí | Contraseña del rol de `business-api`. |
+
+   Cada componente tiene su propio `.env.example` dentro de su carpeta. Sus variables se describen en la sección de ese componente más abajo.
+
+4. Genera el par de claves RS256 para firmar y verificar los JWT.
+
+   En Linux, macOS, WSL o Git Bash:
+
+   ```bash
+   sh infrastructure/scripts/generate-jwt-keys.sh
+   ```
+
+   En Windows PowerShell (usa `openssl` del `PATH` o el incluido con Git for Windows):
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File infrastructure\scripts\generate-jwt-keys.ps1
+   ```
+
+   Ambos scripts aceptan un directorio de salida opcional y se niegan a sobrescribir claves existentes.
+
+   La clave privada (`secrets/jwt/private.pem`) solo la usa `auth-api`; la clave pública (`secrets/jwt/public.pem`) la usa `business-api`. Git ignora la carpeta `secrets/`.
+
+## Levantar el stack
+
+```bash
+docker compose up -d
+```
+
+Verifica que se crearon las bases de datos de ambos servicios:
+
+```bash
+docker compose exec postgres psql -U postgres -c "\l"
+```
+
+El script de inicialización solo se ejecuta cuando el volumen de datos está vacío. Para volver a ejecutarlo, elimina el volumen con `docker compose down -v`.
+
+### Sin Docker
+
+Con una instalación nativa de PostgreSQL, crea las dos bases y sus roles como superusuario, con los valores del `.env` raíz:
+
+```bash
+psql -U postgres -h localhost -v ON_ERROR_STOP=1 \
+  -c "CREATE ROLE auth_service LOGIN PASSWORD 'change-me-auth';" \
+  -c "CREATE DATABASE auth_db OWNER auth_service;" \
+  -c "REVOKE ALL ON DATABASE auth_db FROM PUBLIC;" \
+  -c "CREATE ROLE business_service LOGIN PASSWORD 'change-me-business';" \
+  -c "CREATE DATABASE business_db OWNER business_service;" \
+  -c "REVOKE ALL ON DATABASE business_db FROM PUBLIC;"
+```
+
+## Configuración por componente
+
+### business-api
+
+1. Crea el entorno virtual e instala el servicio con sus herramientas de desarrollo:
+
+   ```bash
+   cd services/business-api
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -e ".[dev]"
+   ```
+
+   En Windows PowerShell, actívalo con `.venv\Scripts\Activate.ps1`.
+
+2. Crea el archivo de entorno y rellena las variables:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Obligatoria | Descripción |
+   | --- | --- | --- |
+   | `APP_NAME` | No | Nombre del servicio, y también de su carpeta de logs. Por defecto `business-api`. |
+   | `ENVIRONMENT` | No | `local`, `test`, `staging` o `production`. Por defecto `local`. |
+   | `HOST` / `PORT` | No | Dirección en la que escucha el servidor. Por defecto `0.0.0.0:8000`. |
+   | `DOCS_ENABLED` | No | Expone Swagger UI (`/docs`), ReDoc (`/redoc`) y `/openapi.json`. Por defecto `true`. |
+   | `CORS_ORIGINS` | No | Orígenes separados por comas que pueden llamar a la API, como la URL de la app web. |
+   | `DB_HOST` / `DB_PORT` | No | Dirección de PostgreSQL. Por defecto `localhost:5432`. |
+   | `DB_NAME` | Sí | Debe coincidir con `BUSINESS_DB_NAME` del `.env` raíz. |
+   | `DB_USER` | Sí | Debe coincidir con `BUSINESS_DB_USER` del `.env` raíz. |
+   | `DB_PASSWORD` | Sí | Debe coincidir con `BUSINESS_DB_PASSWORD` del `.env` raíz. |
+   | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | No | Tamaño del pool de conexiones. Por defecto `5` y `10`. |
+   | `DB_ECHO` | No | Imprime cada sentencia SQL. Por defecto `false`. |
+   | `JWT_PUBLIC_KEY_PATH` | Una de las dos | Ruta a la clave pública RS256, relativa a la carpeta del servicio. |
+   | `JWT_PUBLIC_KEY` | Una de las dos | Clave pública PEM en línea, usada en lugar de la ruta en CI y servidores; acepta `\n` como salto de línea. |
+   | `JWT_ISSUER` | No | Claim `iss` esperado. Debe coincidir con el emisor de `auth-api`. |
+   | `JWT_AUDIENCE` | No | Claim `aud` esperado. Debe coincidir con la audiencia de `auth-api`. |
+   | `JWT_LEEWAY_SECONDS` | No | Desfase de reloj tolerado en `exp` e `iat`. Por defecto `10`. |
+   | `MAX_PAGE_SIZE` | No | Límite superior del parámetro `limit`. Por defecto `100`. |
+   | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX` | No | Peticiones permitidas por cliente en `/api`. Por defecto `300` cada `900` segundos. |
+   | `FORWARDED_ALLOW_IPS` | No | Proxies cuya cabecera `X-Forwarded-For` acepta uvicorn para conocer la dirección del cliente. Por defecto `127.0.0.1`; usa la dirección de Nginx cuando corre en otra máquina. |
+   | `LOG_LEVEL` | No | Nivel mínimo que se imprime: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` o `CRITICAL`. |
+   | `LOG_VERBOSITY` | No | Verbosidad máxima que se imprime; `1` muestra solo las líneas más relevantes. |
+   | `LOG_SUPPRESS` | No | Niveles o pares nivel/verbosidad que nunca se imprimen, como `DEBUG:3,SUCCESS`. |
+   | `LOG_TO_FILE` | No | Copia los logs en `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Por defecto `true`. |
+   | `LOG_DIR` | No | Carpeta de los logs, relativa a la carpeta del servicio. Por defecto `logs`. |
+
+3. Aplica las migraciones y arranca el servidor:
+
+   ```bash
+   alembic upgrade head
+   python -m app
+   ```
+
+   Compruébalo con `curl http://localhost:8000/health` y abre la referencia de la API en `http://localhost:8000/docs`.
+
+4. Ejecuta el linter y los tests:
+
+   ```bash
+   flake8
+   pytest
+   ```
+
+### auth-api
+
+El servicio corre sobre el runtime de Bun, que además cifra las contraseñas con su Argon2id integrado.
+
+1. Instala las dependencias; esto también genera el cliente de Prisma:
+
+   ```bash
+   cd services/auth-api
+   bun install
+   ```
+
+2. Crea el archivo de entorno y rellena las variables:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Obligatoria | Descripción |
+   | --- | --- | --- |
+   | `APP_NAME` | No | Nombre del servicio, y también de su carpeta de logs. Por defecto `auth-api`. |
+   | `ENVIRONMENT` | No | `local`, `test`, `staging` o `production`. Por defecto `local`. |
+   | `HOST` / `PORT` | No | Dirección en la que escucha el servidor. Por defecto `0.0.0.0:3000`. |
+   | `CORS_ORIGINS` | No | Orígenes separados por comas que pueden llamar a la API, como la URL de la app web. |
+   | `DB_HOST` / `DB_PORT` | No | Dirección de PostgreSQL. Por defecto `localhost:5432`. |
+   | `DB_NAME` | Sí | Debe coincidir con `AUTH_DB_NAME` del `.env` raíz. |
+   | `DB_USER` | Sí | Debe coincidir con `AUTH_DB_USER` del `.env` raíz. |
+   | `DB_PASSWORD` | Sí | Debe coincidir con `AUTH_DB_PASSWORD` del `.env` raíz. |
+   | `DB_POOL_SIZE` | No | Tamaño del pool de conexiones. Por defecto `5`. |
+   | `JWT_PRIVATE_KEY_PATH` | Una de las dos | Ruta a la clave privada RS256, relativa a la carpeta del servicio. |
+   | `JWT_PRIVATE_KEY` | Una de las dos | Clave privada PEM (PKCS#8) en línea, usada en lugar de la ruta en CI y servidores; acepta `\n` como salto de línea. |
+   | `JWT_ISSUER` | No | Claim `iss` de cada token. Debe coincidir con `JWT_ISSUER` de `business-api`. |
+   | `JWT_AUDIENCE` | No | Claim `aud` de cada token. Debe coincidir con `JWT_AUDIENCE` de `business-api`. |
+   | `JWT_EXPIRES_IN_SECONDS` | No | Duración del token de acceso. Por defecto `900` (15 minutos). |
+   | `REFRESH_TOKEN_TTL_SECONDS` | No | Vida absoluta de una sesión, desde el login. Por defecto `43200` (12 horas). |
+   | `REFRESH_COOKIE_SECURE` | No | Envía la cookie de refresco solo por HTTPS. Por defecto `true` y debe seguir en `true` en `production`; los navegadores la aceptan en `http://localhost`. |
+   | `MAX_PAGE_SIZE` | No | Límite superior del parámetro `limit`. Por defecto `100`. |
+   | `TRUST_PROXY` | No | Número de proxies inversos delante del servicio, usado para leer la dirección del cliente de `X-Forwarded-For`. Por defecto `0`; usa `1` detrás de Nginx. |
+   | `DOCS_ENABLED` | No | Expone Swagger UI (`/docs`) y `/openapi.json`. Por defecto `true`. |
+   | `TURNSTILE_SECRET_KEY` | En producción | Clave secreta de Cloudflare Turnstile. Vacía desactiva la verificación fuera de `production`; `1x0000000000000000000000000000000AA` siempre aprueba y `2x0000000000000000000000000000000AA` siempre falla. |
+   | `TURNSTILE_VERIFY_URL` | No | Endpoint de validación de Turnstile. Por defecto el `siteverify` de Cloudflare. |
+   | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX` | No | Peticiones permitidas por cliente en `/api`. Por defecto `300` cada `900` segundos. |
+   | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` / `LOGIN_RATE_LIMIT_MAX` | No | Logins fallidos permitidos por cliente. Por defecto `10` cada `900` segundos. |
+   | `ROOT_EMAIL` | Sí | Correo de la única cuenta `root`. |
+   | `ROOT_PASSWORD` | Sí | Contraseña de `root`, de al menos 12 caracteres. |
+   | `ROOT_FULL_NAME` | No | Nombre visible de `root`. Por defecto `Root`. |
+   | `LOG_LEVEL` | No | Nivel mínimo que se imprime: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` o `CRITICAL`. |
+   | `LOG_VERBOSITY` | No | Verbosidad máxima que se imprime; `1` muestra solo las líneas más relevantes y `2` añade el log de accesos. |
+   | `LOG_SUPPRESS` | No | Niveles o pares nivel/verbosidad que nunca se imprimen, como `DEBUG:3,SUCCESS`. |
+   | `LOG_TO_FILE` | No | Copia los logs en `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Por defecto `true`. |
+   | `LOG_DIR` | No | Carpeta de los logs, relativa a la carpeta del servicio. Por defecto `logs`. |
+
+   `root` se crea desde `ROOT_*` la primera vez que arranca el servicio, y a partir de ahí esas variables se ignoran: cambiarlas después no tiene efecto. `root` cambia su propia contraseña con `PUT /api/v1/users/me/password`, así que `ROOT_PASSWORD` se puede quitar del entorno una vez cambiada. Nadie puede editar ni desactivar a `root` por la API.
+
+3. Aplica las migraciones y arranca el servidor:
+
+   ```bash
+   bun run db:migrate
+   bun run dev
+   ```
+
+   Compruébalo con `curl http://localhost:3000/health` y abre la referencia de la API en `http://localhost:3000/docs`.
+
+4. Ejecuta el linter, la verificación de tipos y los tests:
+
+   ```bash
+   bun run lint
+   bun run typecheck
+   bun test
+   ```
+
+### web
+
+React 19 con TypeScript, construida con Vite y con estilos en Tailwind CSS. Se comunica con `auth-api` para la sesión y con `business-api` para los datos del taller.
+
+1. Instala las dependencias:
+
+   ```bash
+   cd apps/web
+   bun install
+   ```
+
+2. Crea el archivo de entorno:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Obligatoria | Descripción |
+   | --- | --- | --- |
+   | `VITE_AUTH_API_URL` | No | URL base de `auth-api`. Por defecto `http://localhost:3000`. |
+   | `VITE_BUSINESS_API_URL` | No | URL base de `business-api`. Por defecto `http://localhost:8000`. |
+   | `VITE_TURNSTILE_SITE_KEY` | No | Clave pública de sitio de Cloudflare Turnstile del formulario de login. Vacía oculta el widget; `1x00000000000000000000AA` siempre aprueba. Debe ir en pareja con `TURNSTILE_SECRET_KEY` de `auth-api`. |
+   | `VITE_SITE_URL` | No | URL pública del sitio, usada en el enlace canónico y en las etiquetas Open Graph. |
+
+   Estos valores quedan dentro del build y cualquiera puede verlos, así que nunca contienen secretos.
+
+3. Arranca el servidor de desarrollo, con las dos API corriendo, y abre `http://localhost:5173`:
+
+   ```bash
+   bun run dev
+   ```
+
+   El origen de la web debe estar en `CORS_ORIGINS` de las dos API. La cookie de refresco es `Secure`; los navegadores la aceptan en `http://localhost`.
+
+4. Ejecuta el linter, la verificación de tipos, los tests y el build de producción:
+
+   ```bash
+   bun run lint
+   bun run typecheck
+   bun run test
+   bun run build
+   ```
+
+## Documentación
+
+Sirve la documentación en local:
+
+```bash
+pip install -r requirements-docs.txt
+mkdocs serve
+```
+
+También se publica automáticamente: el workflow `docs` la compila con `mkdocs build --strict` en cada pull request y push a `dev` y `main`, y la despliega en GitHub Pages en cada push a `main`, en <https://zerik-official.github.io/Motorix/docs/>.

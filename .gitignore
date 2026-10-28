@@ -1,0 +1,43 @@
+# Ide
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Secrets
+secrets/
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+services/auth-api/src/generated/
+
+# Logs
+logs/
+*.log
+
+# Docs
+site/
+
+# OS
+.DS_Store
+Thumbs.db

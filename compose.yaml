@@ -1,0 +1,102 @@
+name: motorix
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      AUTH_DB_NAME: ${AUTH_DB_NAME:?AUTH_DB_NAME is required}
+      AUTH_DB_USER: ${AUTH_DB_USER:?AUTH_DB_USER is required}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}
+      BUSINESS_DB_NAME: ${BUSINESS_DB_NAME:?BUSINESS_DB_NAME is required}
+      BUSINESS_DB_USER: ${BUSINESS_DB_USER:?BUSINESS_DB_USER is required}
+      BUSINESS_DB_PASSWORD: ${BUSINESS_DB_PASSWORD:?BUSINESS_DB_PASSWORD is required}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/scripts/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  auth-api:
+    build: ./services/auth-api
+    image: motorix-auth-api:local
+    restart: unless-stopped
+    env_file: ./services/auth-api/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${AUTH_DB_NAME}
+      DB_USER: ${AUTH_DB_USER}
+      DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      HOST: 0.0.0.0
+      PORT: "3000"
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt/private.pem
+      LOG_TO_FILE: "false"
+    volumes:
+      - ./secrets/jwt/private.pem:/run/secrets/jwt/private.pem:ro
+    ports:
+      - "127.0.0.1:${AUTH_API_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  business-api:
+    build: ./services/business-api
+    image: motorix-business-api:local
+    restart: unless-stopped
+    env_file: ./services/business-api/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${BUSINESS_DB_NAME}
+      DB_USER: ${BUSINESS_DB_USER}
+      DB_PASSWORD: ${BUSINESS_DB_PASSWORD}
+      HOST: 0.0.0.0
+      PORT: "8000"
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt/public.pem
+      LOG_TO_FILE: "false"
+    volumes:
+      - ./secrets/jwt/public.pem:/run/secrets/jwt/public.pem:ro
+    ports:
+      - "127.0.0.1:${BUSINESS_API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        VITE_AUTH_API_URL: ${WEB_AUTH_API_URL:-http://localhost:3000}
+        VITE_BUSINESS_API_URL: ${WEB_BUSINESS_API_URL:-http://localhost:8000}
+        VITE_TURNSTILE_SITE_KEY: ${WEB_TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
+        VITE_SITE_URL: ${WEB_SITE_URL:-http://localhost:5173}
+    image: motorix-web:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-5173}:80"
+    depends_on:
+      auth-api:
+        condition: service_healthy
+      business-api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+
+networks:
+  backend:

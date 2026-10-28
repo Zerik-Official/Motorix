@@ -1,0 +1,10 @@
+{
+  "name": "motorix-e2e",
+  "version": "0.1.0",
+  "description": "End-to-end tests of auth-api and business-api running together.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test"
+  }
+}

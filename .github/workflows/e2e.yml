@@ -1,0 +1,143 @@
+name: e2e
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "services/**"
+      - "tests/e2e/**"
+      - "infrastructure/scripts/postgres/**"
+      - ".github/workflows/e2e.yml"
+  push:
+    branches: [dev, main]
+    paths:
+      - "services/**"
+      - "tests/e2e/**"
+      - "infrastructure/scripts/postgres/**"
+      - ".github/workflows/e2e.yml"
+
+env:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: postgres
+  PGHOST: localhost
+  PGPASSWORD: postgres
+  AUTH_DB_NAME: auth_db
+  AUTH_DB_USER: auth_service
+  AUTH_DB_PASSWORD: ci-auth-password
+  BUSINESS_DB_NAME: business_db
+  BUSINESS_DB_USER: business_service
+  BUSINESS_DB_PASSWORD: ci-business-password
+  ROOT_EMAIL: root@motorix.ci
+  ROOT_PASSWORD: ci-root-password-0000
+
+jobs:
+  e2e:
+    name: auth-api and business-api end to end
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/business-api/pyproject.toml
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Create one database and one isolated role per service
+        run: sh infrastructure/scripts/postgres/01-create-databases.sh
+
+      - name: Verify that each service role cannot open the database of the other
+        run: |
+          if PGPASSWORD="$AUTH_DB_PASSWORD" psql -U "$AUTH_DB_USER" -d "$BUSINESS_DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+            echo "$AUTH_DB_USER can connect to $BUSINESS_DB_NAME" >&2
+            exit 1
+          fi
+          if PGPASSWORD="$BUSINESS_DB_PASSWORD" psql -U "$BUSINESS_DB_USER" -d "$AUTH_DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+            echo "$BUSINESS_DB_USER can connect to $AUTH_DB_NAME" >&2
+            exit 1
+          fi
+          echo "Each service role is confined to its own database"
+
+      - name: Generate a throwaway RS256 key pair shared by both services
+        run: |
+          openssl genrsa -out /tmp/private.pem 2048
+          openssl rsa -in /tmp/private.pem -pubout -out /tmp/public.pem
+
+      - name: Install, migrate and start auth-api
+        working-directory: services/auth-api
+        env:
+          ENVIRONMENT: test
+          DB_NAME: ${{ env.AUTH_DB_NAME }}
+          DB_USER: ${{ env.AUTH_DB_USER }}
+          DB_PASSWORD: ${{ env.AUTH_DB_PASSWORD }}
+          JWT_PRIVATE_KEY_PATH: /tmp/private.pem
+          LOG_TO_FILE: "false"
+        run: |
+          bun install --frozen-lockfile
+          bun run db:migrate
+          nohup bun src/index.ts > /tmp/auth-api.log 2>&1 &
+
+      - name: Install, migrate and start business-api
+        working-directory: services/business-api
+        env:
+          ENVIRONMENT: test
+          DB_NAME: ${{ env.BUSINESS_DB_NAME }}
+          DB_USER: ${{ env.BUSINESS_DB_USER }}
+          DB_PASSWORD: ${{ env.BUSINESS_DB_PASSWORD }}
+          JWT_PUBLIC_KEY_PATH: /tmp/public.pem
+          LOG_TO_FILE: "false"
+        run: |
+          pip install -e .
+          alembic upgrade head
+          nohup python -m app > /tmp/business-api.log 2>&1 &
+
+      - name: Wait until both services are healthy
+        run: |
+          for service in http://localhost:3000 http://localhost:8000; do
+            for attempt in $(seq 1 30); do
+              if curl --fail --silent "$service/health" > /dev/null; then
+                echo "$service is healthy"
+                continue 2
+              fi
+              sleep 1
+            done
+            echo "$service never became healthy" >&2
+            exit 1
+          done
+
+      - name: Run the end-to-end suite
+        working-directory: tests/e2e
+        run: bun test
+
+      - name: Print the service logs
+        if: always()
+        run: |
+          echo "::group::auth-api"
+          cat /tmp/auth-api.log || true
+          echo "::endgroup::"
+          echo "::group::business-api"
+          cat /tmp/business-api.log || true
+          echo "::endgroup::"
