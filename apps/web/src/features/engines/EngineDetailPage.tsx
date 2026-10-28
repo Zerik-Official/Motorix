@@ -4,12 +4,11 @@ import { Link, useParams } from "react-router";
 
 import { Button, buttonVariants } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { cn } from "@/lib/utils";
-import { fetchClient, type ClientOption } from "@shared/api/catalog";
 import { ActiveBadge } from "@shared/components/ActiveBadge";
 import { ConfirmModal } from "@shared/components/ConfirmModal";
 import { DetailItem } from "@shared/components/DetailItem";
 import { ErrorState } from "@shared/components/ErrorState";
+import { ReactivateButton } from "@shared/components/ReactivateButton";
 import { formatIdentification } from "@shared/domain/identification";
 import { useToast } from "@shared/feedback/useToast";
 import { formatDate, formatDateTime } from "@shared/format";
@@ -20,7 +19,7 @@ import { useSession } from "@shared/session/useSession";
 
 import { fetchOrders, type OrderPage } from "../repair-orders/api";
 import { OrdersList } from "../repair-orders/components/OrdersList";
-import { deactivateEngine, fetchEngineDetail, type Engine } from "./api";
+import { deactivateEngine, fetchEngineDetail, reactivateEngine, type Engine } from "./api";
 import { EngineFormModal } from "./components/EngineFormModal";
 
 /**
@@ -88,8 +87,6 @@ export function EngineDetailPage() {
   const [editing, setEditing] = useState<boolean>(false);
   const [deactivating, setDeactivating] = useState<boolean>(false);
   const engine: Engine | null = updated?.id === engineId ? updated : loaded.data;
-  const ownerId: string = engine?.client_id ?? "";
-  const owner = useAsync<ClientOption | null>(() => (ownerId && can("clients:read") ? fetchClient(ownerId) : Promise.resolve(null)), ownerId);
   useDocumentTitle(engine ? `Motor ${engine.serial_number}` : "Motor");
 
   const back = (
@@ -131,6 +128,15 @@ export function EngineDetailPage() {
   };
 
   /**
+   * Reactivates the engine and confirms it.
+   */
+  const handleReactivate = async (): Promise<void> => {
+    const saved: Engine = await reactivateEngine(engine);
+    setUpdated(saved);
+    notify({ tone: "success", title: "Motor reactivado", description: `El motor ${saved.serial_number} vuelve a aparecer al abrir órdenes.` });
+  };
+
+  /**
    * Deactivates the engine and confirms it.
    */
   const handleDeactivate = async (): Promise<void> => {
@@ -153,21 +159,23 @@ export function EngineDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Can permission="repair_orders:read">
-              <Link to={`/app/ordenes?motor=${engine.id}`} className={cn(buttonVariants({ variant: "outline" }))}>
+              <Link to={`/app/ordenes?motor=${engine.id}`} className={buttonVariants({ variant: "outline" })}>
                 <LuClipboardList aria-hidden />
                 Ver sus órdenes
               </Link>
             </Can>
             <Can permission="engines:write">
-              <Button variant="outline" onClick={() => setEditing(true)} disabled={!owner.data}>
+              <Button variant="outline" onClick={() => setEditing(true)}>
                 <LuPencil aria-hidden />
                 Editar
               </Button>
-              {engine.is_active && (
+              {engine.is_active ? (
                 <Button variant="destructive" onClick={() => setDeactivating(true)}>
                   <LuBan aria-hidden />
                   Desactivar
                 </Button>
+              ) : (
+                <ReactivateButton onReactivate={handleReactivate} />
               )}
             </Can>
           </div>
@@ -190,36 +198,31 @@ export function EngineDetailPage() {
           </dl>
         </section>
 
-        <Can permission="clients:read">
-          <section aria-labelledby="engine-owner-title" aria-busy={owner.loading} className="rounded-lg border border-line bg-panel p-5">
-            <h2 id="engine-owner-title" className="mb-4 font-wide text-lg font-semibold text-fg">
-              Dueño
-            </h2>
-            {owner.error ? (
-              <ErrorState error={owner.error} onRetry={owner.reload} />
-            ) : !owner.data ? (
-              <Skeleton className="h-24 w-full" />
-            ) : (
-              <dl className="grid gap-4">
-                <DetailItem term="Cliente">
-                  <Link to={`/app/clientes/${owner.data.id}`} className="font-semibold text-fg underline-offset-4 hover:underline">
-                    {owner.data.name}
-                  </Link>
-                </DetailItem>
-                <DetailItem term="Identificación">{formatIdentification(owner.data.identification_type, owner.data.identification_number)}</DetailItem>
-                <DetailItem term="Correo de contacto">{owner.data.email}</DetailItem>
-                {!owner.data.is_active && <ActiveBadge active={false} className="justify-self-start" />}
-              </dl>
-            )}
-          </section>
-        </Can>
+        <section aria-labelledby="engine-owner-title" className="rounded-lg border border-line bg-panel p-5">
+          <h2 id="engine-owner-title" className="mb-4 font-wide text-lg font-semibold text-fg">
+            Dueño
+          </h2>
+          <dl className="grid gap-4">
+            <DetailItem term="Cliente">
+              {can("clients:read") ? (
+                <Link to={`/app/clientes/${engine.client.id}`} className="font-semibold text-fg underline-offset-4 hover:underline">
+                  {engine.client.name}
+                </Link>
+              ) : (
+                engine.client.name
+              )}
+            </DetailItem>
+            <DetailItem term="Identificación">{formatIdentification(engine.client.identification_type, engine.client.identification_number)}</DetailItem>
+            {!engine.client.is_active && <ActiveBadge active={false} className="justify-self-start" />}
+          </dl>
+        </section>
       </div>
 
       <Can permission="repair_orders:read">
         <EngineOrders engine={engine} />
       </Can>
 
-      {editing && owner.data && <EngineFormModal engine={engine} owner={owner.data} onClose={() => setEditing(false)} onSaved={handleEdited} />}
+      {editing && <EngineFormModal engine={engine} owner={engine.client} onClose={() => setEditing(false)} onSaved={handleEdited} />}
       <ConfirmModal
         open={deactivating}
         onClose={() => setDeactivating(false)}
@@ -229,7 +232,7 @@ export function EngineDetailPage() {
         onConfirm={handleDeactivate}
       >
         <p>Dejará de aparecer al abrir órdenes y en la lista de motores activos. Sus órdenes se conservan tal como están.</p>
-        <p>La aplicación no permite reactivarlo después.</p>
+        <p>Puedes reactivarlo después desde esta misma página.</p>
       </ConfirmModal>
     </div>
   );
