@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { LuArrowRightLeft, LuLoaderCircle } from "react-icons/lu";
 
 import { Button } from "@/components/ui/Button";
@@ -49,7 +49,7 @@ export function StatusChangeForm({ order, onChanged }: StatusChangeFormProps) {
    *
    * @param event - Submit event of the form.
    */
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!target) {
       setError("Elige la etapa a la que pasa la orden.");
