@@ -92,3 +92,17 @@ class RepairOrderDetail(RepairOrderRead):
     """A repair order with its full status history, oldest first."""
 
     history: list[RepairOrderStatusHistoryRead]
+
+
+class StatusCount(BaseModel):
+    """Number of repair orders in one status."""
+
+    status: RepairOrderStatus
+    count: int = Field(ge=0)
+
+
+class RepairOrderSummary(BaseModel):
+    """Number of repair orders per status, in the order the workshop moves through them."""
+
+    total: int = Field(ge=0)
+    by_status: list[StatusCount]
