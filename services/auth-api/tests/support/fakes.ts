@@ -7,6 +7,7 @@ import { generateKeyPair } from "jose";
 import type { AppContext } from "../../src/app";
 import type { Settings } from "../../src/core/config";
 import { ConflictError } from "../../src/core/errors";
+import type { CaptchaVerifier } from "../../src/core/security/captcha";
 import { JwtIssuer } from "../../src/core/security/jwt-issuer";
 import { JwtVerifier } from "../../src/core/security/jwt-verifier";
 import { PasswordHasher } from "../../src/core/security/password-hasher";
@@ -182,7 +183,10 @@ export function testSettings(overrides: Partial<Settings> = {}): Settings {
     host: "127.0.0.1",
     port: 3000,
     corsOrigins: [],
+    trustProxy: 0,
     maxPageSize: 100,
+    turnstile: { secretKey: "", verifyUrl: "https://turnstile.test/siteverify" },
+    rateLimit: { windowSeconds: 900, max: 1000, loginWindowSeconds: 900, loginMax: 1000 },
     database: { host: "localhost", port: 5432, name: "auth_db", user: "auth_service", password: "", poolSize: 1 },
     jwt: {
       privateKeyPath: "",
@@ -204,6 +208,30 @@ export interface TestContext extends AppContext {
   users: InMemoryUserRepository;
   rolePermissions: InMemoryRolePermissionRepository;
   database: FakeDatabase;
+  captcha: FakeCaptchaVerifier;
+}
+
+/**
+ * Human verification stand-in that records its calls and fails when the test says so.
+ */
+export class FakeCaptchaVerifier implements CaptchaVerifier {
+  readonly calls: { token: string | undefined; remoteIp: string | undefined }[] = [];
+
+  /**
+   * @param failure - Error thrown on every call, or null to accept.
+   */
+  constructor(public failure: Error | null = null) {}
+
+  /**
+   * @param token - Token sent by the client.
+   * @param remoteIp - Address of the client.
+   */
+  async verify(token: string | undefined, remoteIp?: string): Promise<void> {
+    this.calls.push({ token, remoteIp });
+    if (this.failure !== null) {
+      throw this.failure;
+    }
+  }
 }
 
 /**
@@ -220,6 +248,7 @@ export async function testContext(overrides: Partial<Settings> = {}): Promise<Te
     database: new FakeDatabase(),
     jwtIssuer: new JwtIssuer(privateKey, settings.jwt),
     jwtVerifier: new JwtVerifier(publicKey, settings.jwt),
+    captcha: new FakeCaptchaVerifier(),
     users: new InMemoryUserRepository(),
     rolePermissions: new InMemoryRolePermissionRepository(structuredClone(DEFAULT_ROLE_PERMISSIONS)),
     hasher: new PasswordHasher(1024, 1),
