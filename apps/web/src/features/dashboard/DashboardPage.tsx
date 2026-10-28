@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import { ErrorState } from "@shared/components/ErrorState";
 import { PageHeader } from "@shared/components/PageHeader";
 import { useAsync } from "@shared/hooks/useAsync";
@@ -51,9 +53,14 @@ export function DashboardPage() {
           </section>
 
           <section aria-labelledby="recent-title" className="flex flex-col gap-3" data-tour="recent-orders">
-            <h2 id="recent-title" className="font-wide text-lg font-semibold text-fg">
-              Últimas órdenes
-            </h2>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id="recent-title" className="font-wide text-lg font-semibold text-fg">
+                Últimas órdenes
+              </h2>
+              <Link to="/app/ordenes" className="text-sm font-medium">
+                Ver todas las órdenes
+              </Link>
+            </div>
             {recent.error ? <ErrorState error={recent.error} onRetry={recent.reload} /> : <RecentOrders orders={recent.data} />}
           </section>
         </>
