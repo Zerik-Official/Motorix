@@ -73,7 +73,7 @@ Roles follow a strict hierarchy: `root` > `admin` > `user`. A user can only mana
 | Modify or deactivate the `root` account | No | No | No |
 
 - With only two roles, an admin could deactivate another admin and the platform could end up without any administrator. A single `root` above them removes that state without extra rules.
-- There is exactly one `root`. Its credentials are defined in the `auth-api` environment and seeded on startup: the password is hashed with Argon2id before it is stored, and the account cannot be created, changed or deactivated through the API.
+- There is exactly one `root`. It is created from the `auth-api` environment on the first start only, with the password hashed with Argon2id; later changes to `ROOT_*` are ignored, so the plain password does not have to stay in the environment. `root` changes its own password with `PUT /api/v1/users/me/password`, which checks the current one and ends every session, and no account can create, edit or deactivate `root` through the API.
 - Changing a role requires outranking both the current and the new role, so an `admin` can neither promote a `user` to `admin` nor edit another `admin`. Deactivated accounts are kept, never deleted.
 - `auth-api` reads the caller's account and its role permissions from the database on every request, so a deactivation or a permission change applies there at once. `business-api` only sees the token, so there it applies when the access token expires, at most 15 minutes later by default: a deactivated account cannot renew it, because its sessions are revoked, and after a permission change the renewed token carries the new list.
 

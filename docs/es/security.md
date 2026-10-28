@@ -73,7 +73,7 @@ Los roles siguen una jerarquía estricta: `root` > `admin` > `user`. Un usuario 
 | Modificar o desactivar la cuenta `root` | No | No | No |
 
 - Con solo dos roles, un admin podría desactivar a otro admin y la plataforma podría quedarse sin ningún administrador. Un único `root` por encima de ellos elimina ese estado sin reglas adicionales.
-- Existe exactamente un `root`. Sus credenciales se definen en el entorno de `auth-api` y se siembran al arrancar: la contraseña se cifra con Argon2id antes de guardarse, y la cuenta no se puede crear, modificar ni desactivar a través de la API.
+- Existe exactamente un `root`. Se crea desde el entorno de `auth-api` solo en el primer arranque, con la contraseña cifrada con Argon2id; los cambios posteriores en `ROOT_*` se ignoran, así que la contraseña en texto plano no tiene que quedarse en el entorno. `root` cambia su propia contraseña con `PUT /api/v1/users/me/password`, que comprueba la actual y cierra todas sus sesiones, y ninguna cuenta puede crear, editar ni desactivar a `root` por la API.
 - Cambiar un rol exige estar por encima tanto del rol actual como del nuevo, así que un `admin` no puede ascender a un `user` a `admin` ni editar a otro `admin`. Las cuentas desactivadas se conservan, nunca se borran.
 - `auth-api` lee la cuenta del llamante y los permisos de su rol desde la base en cada request, así que una desactivación o un cambio de permisos se aplica ahí de inmediato. `business-api` solo ve el token, así que ahí se aplica cuando el token de acceso expira, como mucho 15 minutos después por defecto: una cuenta desactivada no puede renovarlo, porque sus sesiones quedan revocadas, y tras un cambio de permisos el token renovado trae la lista nueva.
 
