@@ -45,6 +45,8 @@ Both APIs follow the same object-oriented layered structure:
 
 Routers never access the database directly. Services depend on repositories, which keeps business rules testable and the storage replaceable.
 
+Each request of `business-api` is one unit of work: one session, committed when the endpoint succeeds and rolled back when it fails. The commit runs **before** the response is sent (`scope="function"` on the session dependency), so a client that receives a `201` can read the new row in its very next request, and a commit that fails reaches the client as an error instead of a success. A test records the order of the commit and the response to keep it that way.
+
 ## Scalability decisions
 
 - **Paginated listings**: every list endpoint is paginated with a capped page size, so a request never loads the whole table.
