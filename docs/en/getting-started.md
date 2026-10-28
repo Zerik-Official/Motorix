@@ -175,7 +175,63 @@ The initialization script only runs when the data volume is empty. To run it aga
 
 ### business-api
 
-Documented when the service is added.
+1. Create the virtual environment and install the service with its development tools:
+
+   ```bash
+   cd services/business-api
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -e ".[dev]"
+   ```
+
+   On Windows PowerShell, activate it with `.venv\Scripts\Activate.ps1`.
+
+2. Create the environment file and fill in the variables:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Required | Description |
+   | --- | --- | --- |
+   | `APP_NAME` | No | Service name, also the name of its log folder. Defaults to `business-api`. |
+   | `ENVIRONMENT` | No | `local`, `test`, `staging` or `production`. Defaults to `local`. |
+   | `HOST` / `PORT` | No | Address the server listens on. Defaults to `0.0.0.0:8000`. |
+   | `DOCS_ENABLED` | No | Expose Swagger UI (`/docs`), ReDoc (`/redoc`) and `/openapi.json`. Defaults to `true`. |
+   | `CORS_ORIGINS` | No | Comma separated origins allowed to call the API, such as the web app URL. |
+   | `DB_HOST` / `DB_PORT` | No | PostgreSQL address. Defaults to `localhost:5432`. |
+   | `DB_NAME` | Yes | Must match `BUSINESS_DB_NAME` of the root `.env`. |
+   | `DB_USER` | Yes | Must match `BUSINESS_DB_USER` of the root `.env`. |
+   | `DB_PASSWORD` | Yes | Must match `BUSINESS_DB_PASSWORD` of the root `.env`. |
+   | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | No | Connection pool size. Defaults to `5` and `10`. |
+   | `DB_ECHO` | No | Print every SQL statement. Defaults to `false`. |
+   | `JWT_PUBLIC_KEY_PATH` | One of both | Path to the RS256 public key, relative to the service folder. |
+   | `JWT_PUBLIC_KEY` | One of both | Inline PEM public key, used instead of the path in CI and servers; `\n` is accepted for line breaks. |
+   | `JWT_ISSUER` | No | Expected `iss` claim. Must match the issuer of `auth-api`. |
+   | `JWT_AUDIENCE` | No | Expected `aud` claim. Must match the audience of `auth-api`. |
+   | `JWT_LEEWAY_SECONDS` | No | Clock skew tolerated on `exp` and `iat`. Defaults to `10`. |
+   | `MAX_PAGE_SIZE` | No | Upper limit of the `limit` query parameter. Defaults to `100`. |
+   | `LOG_LEVEL` | No | Minimum level printed: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` or `CRITICAL`. |
+   | `LOG_VERBOSITY` | No | Highest verbosity printed; `1` shows only the most relevant lines. |
+   | `LOG_SUPPRESS` | No | Levels or level/verbosity pairs never printed, such as `DEBUG:3,SUCCESS`. |
+   | `LOG_TO_FILE` | No | Copy logs to `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Defaults to `true`. |
+   | `LOG_DIR` | No | Folder of the log files, relative to the service folder. Defaults to `logs`. |
+
+3. Apply the migrations and start the server:
+
+   ```bash
+   alembic upgrade head
+   python -m app
+   ```
+
+   Check it with `curl http://localhost:8000/health` and open the API reference at `http://localhost:8000/docs`.
+
+4. Run the linter and the tests:
+
+   ```bash
+   flake8
+   pytest
+   ```
 
 ### auth-api
 
