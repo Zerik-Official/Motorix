@@ -1,5 +1,6 @@
 site_name: Motorix
 site_description: Heavy mining engine repair management platform
+site_url: https://zerik-official.github.io/Motorix/docs/
 docs_dir: docs
 exclude_docs: |
   README.md
