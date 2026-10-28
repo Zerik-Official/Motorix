@@ -49,7 +49,9 @@ Los routers nunca acceden directamente a la base de datos. Los servicios depende
 
 - **Listados paginados**: todo endpoint de listado está paginado con un tamaño de página máximo, así ninguna petición carga la tabla completa.
 - **Paginación por cursor en órdenes**: el listado de órdenes usa un cursor sobre `(created_at, id)`, que mantiene constante el costo de cada página incluso con millones de filas, a diferencia de un `OFFSET` profundo.
-- **Sin consultas N+1**: los datos relacionados (motor, cliente) se cargan con eager loading en la misma ida a la base de datos en lugar de una consulta por fila.
+- **Sin consultas N+1**: los datos relacionados (motor, cliente) se cargan con eager loading en la misma ida a la base de datos en lugar de una consulta por fila. Un test cuenta las sentencias SQL del listado de órdenes y comprueba que una página más grande nunca añade consultas.
+- **Resumen del tablero en una consulta**: `GET /api/v1/repair-orders/summary` cuenta las órdenes de cada estado con un único `GROUP BY`, en lugar de que la app web recorra todas las órdenes para contarlas.
+- **Búsqueda sin idas extra a la base**: la búsqueda de órdenes compara directamente el número de orden y el problema reportado, y el número de serie del motor y el nombre del cliente mediante subconsultas `EXISTS` correlacionadas, así sigue siendo una sola sentencia. Usa `ILIKE '%texto%'`, que un índice B-tree no puede resolver; si la tabla crece mucho, un índice GIN con `pg_trgm` sobre esas columnas la volvería indexada.
 - **Índices** en cada columna usada para filtrar u ordenar (estado, cliente, motor, fecha de creación).
 - **Base de datos por servicio** en una sola instancia de PostgreSQL: simple de operar hoy y lista para mover cada base a su propio servidor.
 

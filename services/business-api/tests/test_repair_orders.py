@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient, Response
+from sqlalchemy import event
 
 # Project imports
 from app.db.base import Base
@@ -261,3 +262,151 @@ async def test_update_status_to_delivered_sets_delivered_at(client: AsyncClient,
     response: Response = await _authorized(client, make_token, "PATCH", status_url, json={"status": "delivered"})
     assert response.status_code == 200
     assert response.json()["delivered_at"] is not None
+
+
+async def test_summary_counts_every_status_in_process_order(client: AsyncClient, make_token: Any) -> None:
+    """The summary lists all seven statuses in workshop order, with zero for the empty ones."""
+    engine: dict[str, Any] = await _create_engine(client, make_token)
+    created: list[Response] = [
+        await _authorized(client, make_token, "POST", "/api/v1/repair-orders", json=_order_payload(engine["id"]))
+        for _ in range(3)
+    ]
+    order_id: str = created[0].json()["id"]
+    await _authorized(
+        client, make_token, "PATCH", f"/api/v1/repair-orders/{order_id}/status", json={"status": "in_repair"}
+    )
+
+    response: Response = await _authorized(client, make_token, "GET", "/api/v1/repair-orders/summary")
+
+    assert response.status_code == 200
+    body: dict[str, Any] = response.json()
+    assert body["total"] == 3
+    assert body["by_status"] == [
+        {"status": "received", "count": 2},
+        {"status": "in_diagnosis", "count": 0},
+        {"status": "awaiting_approval", "count": 0},
+        {"status": "in_repair", "count": 1},
+        {"status": "in_testing", "count": 0},
+        {"status": "finished", "count": 0},
+        {"status": "delivered", "count": 0},
+    ]
+
+
+async def test_summary_of_an_empty_workshop_is_all_zeros(client: AsyncClient, make_token: Any) -> None:
+    """Without orders, the summary still lists every status."""
+    response: Response = await _authorized(client, make_token, "GET", "/api/v1/repair-orders/summary")
+    assert response.json()["total"] == 0
+    assert len(response.json()["by_status"]) == 7
+
+
+async def test_summary_requires_read_permission(client: AsyncClient, make_token: Any) -> None:
+    """A token without `repair_orders:read` cannot read the summary."""
+    headers: dict[str, str] = {AUTH_HEADER_NAME: f"Bearer {make_token(permissions=[])}"}
+    response: Response = await client.get("/api/v1/repair-orders/summary", headers=headers)
+    assert response.status_code == 403
+
+
+async def test_search_matches_number_issue_serial_and_client_ignoring_case(
+    client: AsyncClient,
+    make_token: Any,
+) -> None:
+    """The search finds orders by number, reported issue, engine serial number or client name."""
+    owner: Response = await _authorized(
+        client,
+        make_token,
+        "POST",
+        "/api/v1/clients",
+        json={
+            "name": "Carbones del Cesar",
+            "identification_type": "nit",
+            "identification_number": str(uuid4().int)[:10],
+            "email": "taller@carbones.com",
+        },
+    )
+    engine: Response = await _authorized(
+        client,
+        make_token,
+        "POST",
+        "/api/v1/engines",
+        json={
+            "serial_number": "QSK60-777",
+            "manufacturer": "Cummins",
+            "model": "QSK60",
+            "engine_type": "diesel",
+            "power_rating": "2700 HP",
+            "client_id": owner.json()["id"],
+        },
+    )
+    target: Response = await _authorized(
+        client,
+        make_token,
+        "POST",
+        "/api/v1/repair-orders",
+        json=_order_payload(engine.json()["id"], reported_issue="Turbo overheating at idle"),
+    )
+    other_engine: dict[str, Any] = await _create_engine(client, make_token)
+    await _authorized(client, make_token, "POST", "/api/v1/repair-orders", json=_order_payload(other_engine["id"]))
+    number: str = target.json()["order_number"]
+
+    for text in [number.lower(), "TURBO", "qsk60-7", "carbones"]:
+        params: dict[str, str] = {"search": text}
+        response: Response = await _authorized(client, make_token, "GET", "/api/v1/repair-orders", params=params)
+        assert [item["order_number"] for item in response.json()["items"]] == [number], text
+
+
+async def test_search_takes_wildcards_literally_and_combines_with_filters(client: AsyncClient, make_token: Any) -> None:
+    """`%` and `_` in the search are plain characters, and the search narrows the other filters."""
+    engine: dict[str, Any] = await _create_engine(client, make_token)
+    await _authorized(client, make_token, "POST", "/api/v1/repair-orders", json=_order_payload(engine["id"]))
+
+    wildcard: Response = await _authorized(client, make_token, "GET", "/api/v1/repair-orders", params={"search": "%"})
+    filtered: Response = await _authorized(
+        client,
+        make_token,
+        "GET",
+        "/api/v1/repair-orders",
+        params={"search": "power", "status": "delivered"},
+    )
+    blank: Response = await _authorized(client, make_token, "GET", "/api/v1/repair-orders", params={"search": "   "})
+
+    assert wildcard.json()["items"] == []
+    assert filtered.json()["items"] == []
+    assert len(blank.json()["items"]) == 1
+
+
+async def test_listing_runs_the_same_number_of_queries_for_any_page_size(
+    app: FastAPI,
+    client: AsyncClient,
+    make_token: Any,
+) -> None:
+    """Engines and clients are loaded in batch, so a bigger page never adds queries (no N+1)."""
+    for _ in range(8):
+        engine: dict[str, Any] = await _create_engine(client, make_token)
+        await _authorized(client, make_token, "POST", "/api/v1/repair-orders", json=_order_payload(engine["id"]))
+
+    statements: list[str] = []
+
+    def record(_conn: Any, _cursor: Any, statement: str, *_args: Any) -> None:
+        """
+        Record every statement sent to the database.
+
+        Args:
+            _conn: Connection in use.
+            _cursor: Cursor in use.
+            statement: SQL sent.
+            _args: Remaining event arguments.
+        """
+        statements.append(statement)
+
+    sync_engine = app.state.database.engine.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", record)
+    try:
+        await _authorized(client, make_token, "GET", "/api/v1/repair-orders", params={"limit": 1})
+        small_page: int = len(statements)
+        statements.clear()
+        await _authorized(client, make_token, "GET", "/api/v1/repair-orders", params={"limit": 8, "search": "power"})
+        big_page: int = len(statements)
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", record)
+
+    assert small_page == big_page

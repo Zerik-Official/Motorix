@@ -281,9 +281,12 @@ The service runs on the Bun runtime, which also hashes passwords with its built-
    | `JWT_PRIVATE_KEY` | One of both | Inline PEM private key (PKCS#8), used instead of the path in CI and servers; `\n` is accepted for line breaks. |
    | `JWT_ISSUER` | No | `iss` claim of every token. Must match `JWT_ISSUER` of `business-api`. |
    | `JWT_AUDIENCE` | No | `aud` claim of every token. Must match `JWT_AUDIENCE` of `business-api`. |
-   | `JWT_EXPIRES_IN_SECONDS` | No | Token lifetime. Defaults to `3600`. |
+   | `JWT_EXPIRES_IN_SECONDS` | No | Access token lifetime. Defaults to `900` (15 minutes). |
+   | `REFRESH_TOKEN_TTL_SECONDS` | No | Absolute lifetime of a session, from the login. Defaults to `43200` (12 hours). |
+   | `REFRESH_COOKIE_SECURE` | No | Send the refresh cookie only over HTTPS. Defaults to `true` and must stay `true` in `production`; browsers accept it on `http://localhost`. |
    | `MAX_PAGE_SIZE` | No | Upper limit of the `limit` query parameter. Defaults to `100`. |
    | `TRUST_PROXY` | No | Number of reverse proxies in front of the service, used to read the client address from `X-Forwarded-For`. Defaults to `0`; set `1` behind Nginx. |
+   | `DOCS_ENABLED` | No | Expose Swagger UI (`/docs`) and `/openapi.json`. Defaults to `true`. |
    | `TURNSTILE_SECRET_KEY` | In production | Cloudflare Turnstile secret key. Empty disables the check outside `production`; `1x0000000000000000000000000000000AA` always passes and `2x0000000000000000000000000000000AA` always fails. |
    | `TURNSTILE_VERIFY_URL` | No | Turnstile validation endpoint. Defaults to Cloudflare's `siteverify`. |
    | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX` | No | Requests allowed per client on `/api`. Defaults to `300` per `900` seconds. |
@@ -306,7 +309,7 @@ The service runs on the Bun runtime, which also hashes passwords with its built-
    bun run dev
    ```
 
-   Check it with `curl http://localhost:3000/health`.
+   Check it with `curl http://localhost:3000/health` and open the API reference at `http://localhost:3000/docs`.
 
 4. Run the linter, the type check and the tests:
 

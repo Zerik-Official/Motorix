@@ -1,4 +1,4 @@
-"""Data access of repair orders: keyset pagination and eager loading of their engine and client."""
+"""Data access of repair orders: keyset pagination, search, status counts and eager loading of their relations."""
 
 # Standard library
 from __future__ import annotations
@@ -9,14 +9,55 @@ from datetime import datetime
 from uuid import UUID
 
 # Third-party
-from sqlalchemy import ColumnElement, Select, and_, or_, select
+from sqlalchemy import ColumnElement, Row, Select, and_, exists, func, or_, select
 from sqlalchemy.orm import selectinload
 
 # Project imports
+from app.models.client import Client
+from app.models.engine import Engine
 from app.models.repair_order import RepairOrder, RepairOrderStatus, RepairOrderStatusHistory
 from app.repositories.base import BaseRepository
 
 _CURSOR_SEPARATOR = "|"
+_LIKE_ESCAPE = "\\"
+
+
+def _contains_pattern(text: str) -> str:
+    """
+    Build a case-insensitive `LIKE` pattern that matches the text anywhere, taking it literally.
+
+    Args:
+        text: Text typed by the user, whose `%` and `_` must not act as wildcards.
+
+    Returns:
+        The pattern, escaped with `_LIKE_ESCAPE`.
+    """
+    escaped: str = (
+        text.replace(_LIKE_ESCAPE, _LIKE_ESCAPE * 2).replace("%", f"{_LIKE_ESCAPE}%").replace("_", f"{_LIKE_ESCAPE}_")
+    )
+    return f"%{escaped}%"
+
+
+def _search_filter(text: str) -> ColumnElement[bool]:
+    """
+    Match orders by order number, reported issue, engine serial number or client name.
+
+    The engine and client conditions are correlated `EXISTS` subqueries, so the whole search stays
+    a single statement no matter how many orders match.
+
+    Args:
+        text: Text typed by the user.
+
+    Returns:
+        The condition.
+    """
+    pattern: str = _contains_pattern(text)
+    return or_(
+        RepairOrder.order_number.ilike(pattern, escape=_LIKE_ESCAPE),
+        RepairOrder.reported_issue.ilike(pattern, escape=_LIKE_ESCAPE),
+        exists().where(Engine.id == RepairOrder.engine_id, Engine.serial_number.ilike(pattern, escape=_LIKE_ESCAPE)),
+        exists().where(Client.id == RepairOrder.client_id, Client.name.ilike(pattern, escape=_LIKE_ESCAPE)),
+    )
 
 
 def encode_cursor(created_at: datetime, order_id: UUID) -> str:
@@ -67,6 +108,7 @@ class RepairOrderRepository(BaseRepository[RepairOrder]):
         status: RepairOrderStatus | None = None,
         client_id: UUID | None = None,
         engine_id: UUID | None = None,
+        search: str | None = None,
     ) -> Sequence[RepairOrder]:
         """
         Fetch one keyset page of repair orders, newest first.
@@ -77,6 +119,8 @@ class RepairOrderRepository(BaseRepository[RepairOrder]):
             status: Keep only orders with this status when set.
             client_id: Keep only the orders of this client when set.
             engine_id: Keep only the orders of this engine when set.
+            search: Keep only the orders whose number, reported issue, engine serial number or client
+                name contains this text, ignoring case, when set.
 
         Returns:
             The rows of the page, with their engine and client already loaded.
@@ -88,6 +132,8 @@ class RepairOrderRepository(BaseRepository[RepairOrder]):
             filters.append(RepairOrder.client_id == client_id)
         if engine_id is not None:
             filters.append(RepairOrder.engine_id == engine_id)
+        if search:
+            filters.append(_search_filter(search))
         statement: Select[tuple[RepairOrder]] = (
             select(RepairOrder)
             .where(*filters)
@@ -104,6 +150,19 @@ class RepairOrderRepository(BaseRepository[RepairOrder]):
                 ),
             )
         return (await self._session.execute(statement)).scalars().all()
+
+    async def count_by_status(self) -> dict[RepairOrderStatus, int]:
+        """
+        Count the repair orders of each status with a single `GROUP BY` query.
+
+        Returns:
+            The number of orders per status; statuses without orders are absent.
+        """
+        statement: Select[tuple[RepairOrderStatus, int]] = select(RepairOrder.status, func.count()).group_by(
+            RepairOrder.status,
+        )
+        rows: Sequence[Row[tuple[RepairOrderStatus, int]]] = (await self._session.execute(statement)).all()
+        return {status: count for status, count in rows}
 
     async def get_with_relations(self, order_id: UUID) -> RepairOrder | None:
         """

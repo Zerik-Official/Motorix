@@ -6,6 +6,7 @@ import { BusinessRuleError, NotFoundError, PermissionDeniedError } from "../core
 import type { Caller } from "../core/security/caller";
 import type { PasswordHasher } from "../core/security/password-hasher";
 import { outranks, type Role } from "../core/security/roles";
+import type { RefreshTokenRepository } from "../repositories/refresh-token.repository";
 import type { UserChanges, UserListResult, UserRecord, UserRepository } from "../repositories/user.repository";
 import type {
   PasswordChangeInput,
@@ -22,11 +23,13 @@ export class UserService {
    * @param users - Account storage.
    * @param hasher - Password hasher.
    * @param maxPageSize - Upper limit of the page size of a listing.
+   * @param sessions - Refresh tokens, revoked when an account loses access or its password changes.
    */
   constructor(
     private readonly users: UserRepository,
     private readonly hasher: PasswordHasher,
     private readonly maxPageSize: number,
+    private readonly sessions: Pick<RefreshTokenRepository, "revokeAllForUser">,
   ) {}
 
   /**
@@ -145,11 +148,15 @@ export class UserService {
     if (data.password !== undefined) {
       changes.passwordHash = await this.hasher.hash(data.password);
     }
-    return this.users.update(id, changes);
+    const updated: UserRecord = await this.users.update(id, changes);
+    if (data.password !== undefined || !data.is_active) {
+      await this.sessions.revokeAllForUser(id);
+    }
+    return updated;
   }
 
   /**
-   * Deactivates an account without deleting it; it can no longer authenticate.
+   * Deactivates an account without deleting it and ends its sessions; it can no longer authenticate.
    *
    * @param caller - Account making the change.
    * @param id - Identifier of the account.
@@ -159,6 +166,7 @@ export class UserService {
   async deactivate(caller: Caller, id: string): Promise<UserRecord> {
     const user: UserRecord = await this.find(id);
     this.assertCanManage(caller, user.role);
+    await this.sessions.revokeAllForUser(id);
     if (!user.isActive) {
       return user;
     }
@@ -166,7 +174,8 @@ export class UserService {
   }
 
   /**
-   * Changes the caller's own password after checking the current one; `root` changes it in the environment.
+   * Changes the caller's own password after checking the current one, and ends every session of the
+   * account, so a stolen session does not survive the change; `root` changes it in the environment.
    *
    * @param caller - Authenticated account.
    * @param data - Current and new password.
@@ -184,5 +193,6 @@ export class UserService {
       throw new BusinessRuleError("The new password must be different from the current one");
     }
     await this.users.update(user.id, { passwordHash: await this.hasher.hash(data.new_password) });
+    await this.sessions.revokeAllForUser(user.id);
   }
 }

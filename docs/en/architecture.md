@@ -49,7 +49,9 @@ Routers never access the database directly. Services depend on repositories, whi
 
 - **Paginated listings**: every list endpoint is paginated with a capped page size, so a request never loads the whole table.
 - **Keyset pagination for repair orders**: the order list uses a cursor over `(created_at, id)`, which keeps the cost of a page constant even with millions of rows, unlike deep `OFFSET` pages.
-- **No N+1 queries**: related data (engine, client) is loaded with eager loading in the same round trip instead of one query per row.
+- **No N+1 queries**: related data (engine, client) is loaded with eager loading in the same round trip instead of one query per row. A test counts the SQL statements of the order listing and checks that a bigger page never adds queries.
+- **Dashboard summary in one query**: `GET /api/v1/repair-orders/summary` counts the orders of every status with a single `GROUP BY`, instead of the web app paging through every order to count them.
+- **Search without extra round trips**: the order search matches the order number and reported issue directly, and the engine serial number and client name through correlated `EXISTS` subqueries, so it stays one statement. It uses `ILIKE '%text%'`, which a B-tree index cannot serve; if the table grows large, a `pg_trgm` GIN index on those columns would make it indexed.
 - **Indexes** on every column used for filtering or sorting (status, client, engine, creation date).
 - **Database per service** in a single PostgreSQL instance: simple to operate today and ready to move each database to its own server.
 

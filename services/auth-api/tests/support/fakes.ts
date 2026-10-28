@@ -12,6 +12,11 @@ import { JwtIssuer } from "../../src/core/security/jwt-issuer";
 import { JwtVerifier } from "../../src/core/security/jwt-verifier";
 import { PasswordHasher } from "../../src/core/security/password-hasher";
 import type { Role } from "../../src/core/security/roles";
+import type {
+  NewRefreshToken,
+  RefreshTokenRecord,
+  RefreshTokenRepository,
+} from "../../src/repositories/refresh-token.repository";
 import type { RolePermissionRepository } from "../../src/repositories/role-permission.repository";
 import type {
   NewUser,
@@ -146,6 +151,85 @@ export class InMemoryRolePermissionRepository implements RolePermissionRepositor
 }
 
 /**
+ * Refresh token repository that keeps tokens in a map.
+ */
+export class InMemoryRefreshTokenRepository implements RefreshTokenRepository {
+  readonly tokens: Map<string, RefreshTokenRecord> = new Map();
+
+  /**
+   * @param data - Token to store.
+   * @returns The stored token.
+   */
+  async create(data: NewRefreshToken): Promise<RefreshTokenRecord> {
+    const token: RefreshTokenRecord = {
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+      revokedAt: null,
+      replacedBy: null,
+      ...data,
+    };
+    this.tokens.set(token.id, token);
+    return token;
+  }
+
+  /**
+   * @param tokenHash - SHA-256 hex digest of the token.
+   * @returns The stored token, or null.
+   */
+  async findByHash(tokenHash: string): Promise<RefreshTokenRecord | null> {
+    return [...this.tokens.values()].find((token) => token.tokenHash === tokenHash) ?? null;
+  }
+
+  /**
+   * @param currentId - Identifier of the token being used.
+   * @param next - Successor in the same family.
+   * @returns The successor, or null when the token had already been revoked.
+   */
+  async rotate(currentId: string, next: NewRefreshToken): Promise<RefreshTokenRecord | null> {
+    const current: RefreshTokenRecord | undefined = this.tokens.get(currentId);
+    if (current === undefined || current.revokedAt !== null) {
+      return null;
+    }
+    const successor: RefreshTokenRecord = await this.create(next);
+    this.tokens.set(currentId, { ...current, revokedAt: new Date(), replacedBy: successor.id });
+    return successor;
+  }
+
+  /**
+   * @param familyId - Family whose active tokens are revoked.
+   */
+  async revokeFamily(familyId: string): Promise<void> {
+    this.revokeWhere((token) => token.familyId === familyId);
+  }
+
+  /**
+   * @param userId - Account whose active tokens are revoked.
+   */
+  async revokeAllForUser(userId: string): Promise<void> {
+    this.revokeWhere((token) => token.userId === userId);
+  }
+
+  /**
+   * @param matches - Selects the tokens to revoke.
+   */
+  private revokeWhere(matches: (token: RefreshTokenRecord) => boolean): void {
+    for (const token of this.tokens.values()) {
+      if (matches(token) && token.revokedAt === null) {
+        this.tokens.set(token.id, { ...token, revokedAt: new Date() });
+      }
+    }
+  }
+
+  /**
+   * @param userId - Account to inspect.
+   * @returns How many of its tokens are still active.
+   */
+  activeFor(userId: string): number {
+    return [...this.tokens.values()].filter((token) => token.userId === userId && token.revokedAt === null).length;
+  }
+}
+
+/**
  * Database stand-in whose availability is set by the test.
  */
 export class FakeDatabase implements Pingable {
@@ -203,6 +287,7 @@ export function testSettings(overrides: Partial<Settings> = {}): Settings {
     port: 3000,
     corsOrigins: [],
     trustProxy: 0,
+    docsEnabled: true,
     maxPageSize: 100,
     turnstile: { secretKey: "", verifyUrl: "https://turnstile.test/siteverify" },
     rateLimit: { windowSeconds: 900, max: 1000, loginWindowSeconds: 900, loginMax: 1000 },
@@ -214,6 +299,7 @@ export function testSettings(overrides: Partial<Settings> = {}): Settings {
       audience: "motorix-business-api",
       expiresInSeconds: 3600,
     },
+    session: { refreshTokenTtlSeconds: 43200, secureCookie: true },
     root: { email: "root@motorix.local", password: "a-long-root-password", fullName: "Root" },
     log: { level: "CRITICAL", verbosity: 1, suppress: "", toFile: false, directory: "logs" },
     ...overrides,
@@ -228,6 +314,7 @@ export interface TestContext extends AppContext {
   rolePermissions: InMemoryRolePermissionRepository;
   database: FakeDatabase;
   captcha: FakeCaptchaVerifier;
+  refreshTokens: InMemoryRefreshTokenRepository;
 }
 
 /**
@@ -270,6 +357,7 @@ export async function testContext(overrides: Partial<Settings> = {}): Promise<Te
     captcha: new FakeCaptchaVerifier(),
     users: new InMemoryUserRepository(),
     rolePermissions: new InMemoryRolePermissionRepository(structuredClone(DEFAULT_ROLE_PERMISSIONS)),
+    refreshTokens: new InMemoryRefreshTokenRepository(),
     hasher: new PasswordHasher(1024, 1),
   };
 }

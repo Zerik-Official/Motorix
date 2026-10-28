@@ -96,6 +96,7 @@ class RepairOrderService:
         status: RepairOrderStatus | None = None,
         client_id: UUID | None = None,
         engine_id: UUID | None = None,
+        search: str | None = None,
     ) -> Sequence[RepairOrder]:
         """
         List repair orders with keyset pagination.
@@ -106,11 +107,23 @@ class RepairOrderService:
             status: Keep only orders with this status when set.
             client_id: Keep only the orders of this client when set.
             engine_id: Keep only the orders of this engine when set.
+            search: Keep only the orders whose number, reported issue, engine serial number or client
+                name contains this text when set.
 
         Returns:
             The rows of the page, with their engine and client already loaded.
         """
-        return await self._repository.list_page(limit, cursor, status, client_id, engine_id)
+        return await self._repository.list_page(limit, cursor, status, client_id, engine_id, search)
+
+    async def summary(self) -> dict[RepairOrderStatus, int]:
+        """
+        Count the repair orders of every status, in the order the workshop moves through them.
+
+        Returns:
+            The number of orders per status, including the statuses without orders.
+        """
+        counts: dict[RepairOrderStatus, int] = await self._repository.count_by_status()
+        return {status: counts.get(status, 0) for status in RepairOrderStatus}
 
     async def update_status(self, order_id: UUID, data: RepairOrderStatusUpdate, changed_by: UUID) -> RepairOrder:
         """

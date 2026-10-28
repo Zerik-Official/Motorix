@@ -10,10 +10,13 @@ sequenceDiagram
 
     W->>A: POST /api/v1/auth/login (email, password, Turnstile token)
     A->>A: Verify Turnstile, rate limit, Argon2id hash
-    A-->>W: JWT (RS256, signed with private key)
+    A-->>W: Access JWT (RS256, 15 min) + httpOnly refresh cookie
     W->>B: GET /api/v1/... (Authorization: Bearer JWT)
     B->>B: Verify signature, exp, iss, aud with public key
     B-->>W: Protected resource
+    W->>A: POST /api/v1/auth/refresh (refresh cookie)
+    A->>A: Rotate the refresh token, resolve current permissions
+    A-->>W: New access JWT + rotated refresh cookie
 ```
 
 ## JWT with RS256
@@ -45,6 +48,19 @@ Claims included in every token:
 
 Rotation: generate a new pair, deploy the public key to `business-api`, then the private key to `auth-api`. Tokens signed with the old key expire on their own.
 
+## Sessions
+
+The access token is short lived (`JWT_EXPIRES_IN_SECONDS`, 15 minutes by default) and is kept by the web app **in memory only**, never in `localStorage` or `sessionStorage`, so a script injected into the page has no stored token to steal. It travels as `Authorization: Bearer`, which is what `business-api` verifies.
+
+The session is kept alive by a **refresh token**:
+
+- A random 256-bit value sent only as the cookie `motorix_refresh`: `HttpOnly` (scripts cannot read it), `Secure`, `SameSite=Strict` (other sites cannot make the browser send it), and `Path=/api/v1/auth` (it never reaches `business-api` or any other route).
+- Only its SHA-256 hash is stored, in `refresh_tokens`. A fast hash is enough because the value is random and long; it is not a password.
+- `POST /api/v1/auth/refresh` exchanges it for a new access token, with the permissions the role holds at that moment, and **rotates** it: the used token is revoked and a new one takes its place. On a page reload the web app calls it to recover the session without asking for the password.
+- **Reuse detection**: the tokens of a session form a family. Presenting a token that was already rotated means somebody copied it, so the whole family is revoked and both the thief and the owner must log in again. The revocation is a conditional update, so two requests racing with the same token cannot both succeed.
+- **Absolute lifetime**: a session ends `REFRESH_TOKEN_TTL_SECONDS` after the login (12 hours by default, a work shift); rotation never extends it.
+- **Revocation**: `POST /api/v1/auth/logout` ends the session; deactivating an account, resetting its password or changing the own password ends every session of that account.
+
 ## Roles
 
 Roles follow a strict hierarchy: `root` > `admin` > `user`. A user can only manage accounts with a lower role than their own.
@@ -59,7 +75,7 @@ Roles follow a strict hierarchy: `root` > `admin` > `user`. A user can only mana
 - With only two roles, an admin could deactivate another admin and the platform could end up without any administrator. A single `root` above them removes that state without extra rules.
 - There is exactly one `root`. Its credentials are defined in the `auth-api` environment and seeded on startup: the password is hashed with Argon2id before it is stored, and the account cannot be created, changed or deactivated through the API.
 - Changing a role requires outranking both the current and the new role, so an `admin` can neither promote a `user` to `admin` nor edit another `admin`. Deactivated accounts are kept, never deleted.
-- `auth-api` reads the caller's account and its role permissions from the database on every request, so a deactivation or a permission change applies there at once. `business-api` only sees the token, so there it applies when the token expires.
+- `auth-api` reads the caller's account and its role permissions from the database on every request, so a deactivation or a permission change applies there at once. `business-api` only sees the token, so there it applies when the access token expires, at most 15 minutes later by default: a deactivated account cannot renew it, because its sessions are revoked, and after a permission change the renewed token carries the new list.
 
 ## Permissions
 
@@ -88,7 +104,7 @@ A role only gates how far an account can go in managing other accounts (`4.1.6`)
 - Nobody can grant or revoke a permission they do not hold. Otherwise, if `root` removed `clients:write` from `admin`, an `admin` could still hand it to `user`.
 - `root`'s permissions are hardcoded to "every permission" and are never read from `role_permissions`; the database rejects rows for `root` and the API refuses any attempt to change them.
 
-**How it reaches `business-api`.** At login, `auth-api` resolves the caller's current permissions (read from `role_permissions`, or the whole catalog for `root`) and embeds them as a `permissions` claim in the JWT. `business-api` keeps verifying signature, `exp`, `iss` and `aud` as always, and additionally checks that the claim contains the permission a given endpoint requires. Because the list travels inside the token, a revoked permission only takes effect the next time the account logs in, the same trade-off already accepted for the `role` claim; this keeps `business-api` from ever calling back into `auth-api` to resolve authorization.
+**How it reaches `business-api`.** At login, `auth-api` resolves the caller's current permissions (read from `role_permissions`, or the whole catalog for `root`) and embeds them as a `permissions` claim in the JWT. `business-api` keeps verifying signature, `exp`, `iss` and `aud` as always, and additionally checks that the claim contains the permission a given endpoint requires. Because the list travels inside the token, a revoked permission only takes effect in `business-api` when the web app renews its access token, at most 15 minutes later with the default `JWT_EXPIRES_IN_SECONDS`, the same trade-off accepted for the `role` claim; this keeps `business-api` from ever calling back into `auth-api` to resolve authorization.
 
 **Endpoints.** Every one requires `permissions:manage`:
 

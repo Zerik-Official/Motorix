@@ -21,12 +21,13 @@ export const loginSchema = z.strictObject({
 export type LoginInput = z.infer<typeof loginSchema>;
 
 /**
- * Body returned after a successful login.
+ * Body returned after a successful login or refresh; the refresh token travels in a cookie, never here.
  */
 export interface LoginResponse {
   access_token: string;
   token_type: "Bearer";
   expires_in: number;
   expires_at: string;
+  session_expires_at: string;
   user: ProfileResponse;
 }

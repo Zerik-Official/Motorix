@@ -15,6 +15,7 @@ import { JwtIssuer } from "./core/security/jwt-issuer";
 import { JwtVerifier } from "./core/security/jwt-verifier";
 import { PasswordHasher } from "./core/security/password-hasher";
 import { Database } from "./db/database";
+import { PrismaRefreshTokenRepository } from "./repositories/refresh-token.repository";
 import { PrismaRolePermissionRepository } from "./repositories/role-permission.repository";
 import { PrismaUserRepository } from "./repositories/user.repository";
 import { RootAccountService, type RootSeedResult } from "./services/root-account.service";
@@ -59,6 +60,7 @@ async function main(): Promise<void> {
     captcha,
     users,
     rolePermissions: new PrismaRolePermissionRepository(database.client),
+    refreshTokens: new PrismaRefreshTokenRepository(database.client),
     hasher,
   });
   const server: Server = app.listen(settings.port, settings.host, () => {
