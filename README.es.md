@@ -5,23 +5,15 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-111111?style=for-the-badge&logo=python">
   <img src="https://img.shields.io/badge/FastAPI-111111?style=for-the-badge&logo=fastapi">
-  <img src="https://img.shields.io/badge/SQLAlchemy-111111?style=for-the-badge&logo=sqlalchemy">
   <img src="https://img.shields.io/badge/Express-111111?style=for-the-badge&logo=express&logoColor=white">
   <img src="https://img.shields.io/badge/TypeScript-111111?style=for-the-badge&logo=typescript">
   <img src="https://img.shields.io/badge/Bun-111111?style=for-the-badge&logo=bun">
   <img src="https://img.shields.io/badge/Prisma-111111?style=for-the-badge&logo=prisma">
   <img src="https://img.shields.io/badge/PostgreSQL-111111?style=for-the-badge&logo=postgresql">
   <img src="https://img.shields.io/badge/React-111111?style=for-the-badge&logo=react">
-  <img src="https://img.shields.io/badge/Vite-111111?style=for-the-badge&logo=vite">
-  <img src="https://img.shields.io/badge/Tailwind_CSS-111111?style=for-the-badge&logo=tailwindcss">
-  <img src="https://img.shields.io/badge/React_Router-111111?style=for-the-badge&logo=reactrouter">
-  <img src="https://img.shields.io/badge/Vitest-111111?style=for-the-badge&logo=vitest">
   <img src="https://img.shields.io/badge/JWT_RS256-111111?style=for-the-badge&logo=jsonwebtokens&logoColor=white">
-  <img src="https://img.shields.io/badge/Cloudflare_Turnstile-111111?style=for-the-badge&logo=cloudflare">
   <img src="https://img.shields.io/badge/Docker-111111?style=for-the-badge&logo=docker">
-  <img src="https://img.shields.io/badge/Nginx-111111?style=for-the-badge&logo=nginx">
   <img src="https://img.shields.io/badge/GitHub_Actions-111111?style=for-the-badge&logo=githubactions">
-  <img src="https://img.shields.io/badge/MkDocs_Material-111111?style=for-the-badge&logo=materialformkdocs">
 </p>
 
 <p align="center">
@@ -39,7 +31,7 @@ Motorix es una plataforma interna para un taller de reparación de motores de mi
 | Componente | Stack | Responsabilidad |
 | --- | --- | --- |
 | `apps/web` | React, TypeScript, Vite, Tailwind CSS, React Router, Axios, Bun | Interfaz de usuario |
-| `services/auth-api` | Express, TypeScript, Prisma, Argon2, Bun | Usuarios, roles (`root`, `admin`, `user`), inicio de sesión y emisión de JWT (RS256) |
+| `services/auth-api` | Express 5, TypeScript, Prisma, zod, jose, Bun (runtime y Argon2id), Cloudflare Turnstile | Usuarios, roles (`root`, `admin`, `user`), permisos, inicio de sesión y emisión de JWT (RS256) |
 | `services/business-api` | FastAPI, Python, SQLAlchemy, Alembic, Uvicorn | Clientes, motores, órdenes de reparación e historial de estados |
 | `postgres` | PostgreSQL 17 | Una instancia, una base de datos aislada por servicio |
 | Entrega | Docker Compose, Nginx, GitHub Actions, MkDocs Material | Stack local, proxy inverso, CI y documentación |
@@ -72,7 +64,7 @@ motorix/
 
 ## Requisitos
 
-- Docker Engine con el plugin de Compose
+- Docker Engine con el plugin de Compose, o PostgreSQL instalado de forma nativa (ver [Sin Docker](docs/es/getting-started.md#sin-docker))
 - OpenSSL (para generar el par de claves JWT)
 - Python 3.12+ y Bun 1.1+ para desarrollo local sin contenedores
 
@@ -101,6 +93,8 @@ La [guía de primeros pasos](docs/es/getting-started.md) explica cómo instalar 
    ```bash
    docker compose up -d
    ```
+
+   Sin Docker, crea las bases en un PostgreSQL nativo como se describe en [Sin Docker](docs/es/getting-started.md#sin-docker).
 
 ## Documentación
 
