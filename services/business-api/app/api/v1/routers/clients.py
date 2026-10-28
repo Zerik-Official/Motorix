@@ -8,11 +8,18 @@ from uuid import UUID
 from fastapi import APIRouter, Query, status
 
 # Project imports
-from app.api.dependencies import ClientServiceDep, CurrentUserDep, PageParamsDep
+from app.api.dependencies import ClientServiceDep, ClientsReadDep, ClientsWriteDep, PageParamsDep
 from app.schemas.client import ClientCreate, ClientRead, ClientUpdate
 from app.schemas.common import ErrorResponse, Page
 
-router: APIRouter = APIRouter(prefix="/clients", tags=["clients"])
+router: APIRouter = APIRouter(
+    prefix="/clients",
+    tags=["clients"],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+    },
+)
 
 
 @router.post(
@@ -22,7 +29,7 @@ router: APIRouter = APIRouter(prefix="/clients", tags=["clients"])
     responses={status.HTTP_409_CONFLICT: {"model": ErrorResponse}},
     summary="Register a new client",
 )
-async def create_client(data: ClientCreate, service: ClientServiceDep, _: CurrentUserDep) -> ClientRead:
+async def create_client(data: ClientCreate, service: ClientServiceDep, _: ClientsWriteDep) -> ClientRead:
     """
     Register a new client.
 
@@ -41,7 +48,7 @@ async def create_client(data: ClientCreate, service: ClientServiceDep, _: Curren
 @router.get("", response_model=Page[ClientRead], summary="List clients")
 async def list_clients(
     service: ClientServiceDep,
-    _: CurrentUserDep,
+    _: ClientsReadDep,
     page: PageParamsDep,
     search: str | None = Query(default=None, description="Match on the name or the identification number"),
     is_active: bool | None = Query(default=None, description="Keep only active or only inactive clients"),
@@ -70,7 +77,7 @@ async def list_clients(
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse}},
     summary="Fetch one client",
 )
-async def read_client(client_id: UUID, service: ClientServiceDep, _: CurrentUserDep) -> ClientRead:
+async def read_client(client_id: UUID, service: ClientServiceDep, _: ClientsReadDep) -> ClientRead:
     """
     Fetch one client.
 
@@ -99,7 +106,7 @@ async def update_client(
     client_id: UUID,
     data: ClientUpdate,
     service: ClientServiceDep,
-    _: CurrentUserDep,
+    _: ClientsWriteDep,
 ) -> ClientRead:
     """
     Replace the editable fields of a client.
@@ -123,7 +130,7 @@ async def update_client(
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse}},
     summary="Deactivate a client",
 )
-async def deactivate_client(client_id: UUID, service: ClientServiceDep, _: CurrentUserDep) -> ClientRead:
+async def deactivate_client(client_id: UUID, service: ClientServiceDep, _: ClientsWriteDep) -> ClientRead:
     """
     Deactivate a client without deleting its row, so its history is preserved.
 
