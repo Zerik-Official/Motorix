@@ -98,8 +98,12 @@ Passwords are hashed with **Argon2id** in `auth-api`. Plain passwords are never 
 
 ## Hardening
 
-- Cloudflare Turnstile on login to block automated attempts.
-- Rate limiting on both APIs, stricter on authentication endpoints.
+- **Cloudflare Turnstile on login.** The web app sends the widget token as `turnstile_token`, and `auth-api` validates it server-side with Cloudflare before it even looks at the password, so a bot never gets to spend an Argon2id hash. A missing or rejected token answers `400 captcha_failed`; Cloudflare being unreachable answers `503`. Without `TURNSTILE_SECRET_KEY` the check is skipped with a warning at startup, which is only allowed outside `production`. Locally, Cloudflare's [test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) force a pass or a failure.
+- **Rate limiting in `auth-api`**, per client address and answered with `429` and `Retry-After`:
+    - Every `/api` route: `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_SECONDS` (300 per 15 minutes by default). `/health` is never limited.
+    - Login: `LOGIN_RATE_LIMIT_MAX` failed attempts per `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (10 per 15 minutes by default). Successful logins do not count, so a person who mistypes once is not locked out, while a brute force attack is stopped after a few tries.
+    - The client address is taken from `X-Forwarded-For` only when `TRUST_PROXY` says how many proxies sit in front; with the default `0` the header is ignored, so it cannot be forged to dodge the limit.
+    - Counters live in the memory of each process, which is enough for a single instance; several instances would need a shared store such as Redis.
 - Security headers and restricted CORS origins.
 - Input validation on every endpoint (Pydantic and zod).
 - Every setting comes from environment variables; `.env` files are never committed, only `.env.example` with non-sensitive values.
