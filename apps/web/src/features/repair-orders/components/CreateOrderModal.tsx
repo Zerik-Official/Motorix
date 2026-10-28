@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { LuLoaderCircle, LuPlus } from "react-icons/lu";
 import { z } from "zod";
 
@@ -98,7 +98,7 @@ export function CreateOrderModal({ open, onClose, onCreated }: CreateOrderModalP
    *
    * @param event - Submit event of the form.
    */
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const parsed = orderSchema.safeParse({
       engine,
