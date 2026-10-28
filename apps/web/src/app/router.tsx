@@ -50,6 +50,14 @@ export const router = createBrowserRouter([
         path: "motores/:engineId",
         lazy: async () => ({ Component: (await import("@features/engines/EngineDetailPage")).EngineDetailPage }),
       },
+      {
+        path: "usuarios",
+        lazy: async () => ({ Component: (await import("@features/users/UsersPage")).UsersPage }),
+      },
+      {
+        path: "permisos",
+        lazy: async () => ({ Component: (await import("@features/roles/RolesPage")).RolesPage }),
+      },
     ],
   },
   { path: "*", Component: NotFoundPage },
