@@ -100,7 +100,7 @@ A role only gates how far an account can go in managing other accounts (`4.1.6`)
 
 Revoking a permission from `admin` does not remove it from `user`: each role keeps its own list, and `root` can revoke it from `user` directly. Every grant and revocation is logged with the account that made it.
 
-**Status.** Implemented in `auth-api`. Still pending: the `require_permission` dependency in `business-api`; until then every endpoint of `business-api` only requires a valid token, regardless of role.
+**Enforcement in `business-api`.** Every business endpoint requires its permission through the `require_permission` dependency: `*:read` to list and consult, `*:write` to create, update, deactivate or change the status of a repair order. A token without it gets `403` with the missing permission in `details`. The `permissions` claim is mandatory, permissions this service does not know yet are ignored, and `root` passes regardless of its claim. `GET /api/v1/me` returns the permissions the token carries.
 
 ## Passwords
 
@@ -109,10 +109,10 @@ Passwords are hashed with **Argon2id** in `auth-api`. Plain passwords are never 
 ## Hardening
 
 - **Cloudflare Turnstile on login.** The web app sends the widget token as `turnstile_token`, and `auth-api` validates it server-side with Cloudflare before it even looks at the password, so a bot never gets to spend an Argon2id hash. A missing or rejected token answers `400 captcha_failed`; Cloudflare being unreachable answers `503`. Without `TURNSTILE_SECRET_KEY` the check is skipped with a warning at startup, which is only allowed outside `production`. Locally, Cloudflare's [test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) force a pass or a failure.
-- **Rate limiting in `auth-api`**, per client address and answered with `429` and `Retry-After`:
-    - Every `/api` route: `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_SECONDS` (300 per 15 minutes by default). `/health` is never limited.
-    - Login: `LOGIN_RATE_LIMIT_MAX` failed attempts per `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (10 per 15 minutes by default). Successful logins do not count, so a person who mistypes once is not locked out, while a brute force attack is stopped after a few tries.
-    - The client address is taken from `X-Forwarded-For` only when `TRUST_PROXY` says how many proxies sit in front; with the default `0` the header is ignored, so it cannot be forged to dodge the limit.
+- **Rate limiting on both APIs**, per client address and answered with `429` and `Retry-After`:
+    - Every `/api` route of each service: `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_SECONDS` (300 per 15 minutes by default). `/health` and the API reference are never limited.
+    - Login, in `auth-api`: `LOGIN_RATE_LIMIT_MAX` failed attempts per `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (10 per 15 minutes by default). Successful logins do not count, so a person who mistypes once is not locked out, while a brute force attack is stopped after a few tries.
+    - The client address is taken from `X-Forwarded-For` only from trusted proxies, so the header cannot be forged to dodge the limit: in `auth-api`, `TRUST_PROXY` says how many proxies sit in front (default `0`, the header is ignored); in `business-api`, uvicorn only reads it from the addresses in `FORWARDED_ALLOW_IPS` (default `127.0.0.1`).
     - Counters live in the memory of each process, which is enough for a single instance; several instances would need a shared store such as Redis.
 - Security headers and restricted CORS origins.
 - Input validation on every endpoint (Pydantic and zod).
