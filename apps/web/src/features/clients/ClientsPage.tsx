@@ -96,7 +96,7 @@ export function ClientsPage() {
 
       <ClientFilters filters={filters} onChange={changeFilters} />
 
-      <section aria-labelledby="clients-results" aria-busy={list.loading} className="flex flex-col gap-4">
+      <section aria-labelledby="clients-results" aria-busy={list.loading} className="flex flex-col gap-4" data-tour="clients-results">
         <h2 id="clients-results" className="sr-only">
           Resultados
         </h2>
