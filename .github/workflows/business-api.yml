@@ -1,0 +1,86 @@
+name: business-api
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "services/business-api/**"
+      - ".github/workflows/business-api.yml"
+  push:
+    branches: [dev, main]
+    paths:
+      - "services/business-api/**"
+      - ".github/workflows/business-api.yml"
+
+defaults:
+  run:
+    working-directory: services/business-api
+
+env:
+  DB_HOST: localhost
+  DB_PORT: 5432
+  DB_NAME: business_db
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+
+jobs:
+  lint-test-build:
+    name: Lint, test and build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: business_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/business-api/pyproject.toml
+
+      - name: Install the service with its development tools
+        run: pip install -e ".[dev]"
+
+      - name: Lint with flake8
+        run: flake8
+
+      - name: Run the test suite
+        run: pytest
+
+      - name: Apply migrations against PostgreSQL
+        run: alembic upgrade head
+
+      - name: Generate a throwaway RS256 key pair for the build smoke test
+        run: openssl genrsa -out /tmp/private.pem 2048 && openssl rsa -in /tmp/private.pem -pubout -out /tmp/public.pem
+
+      - name: Build the application and verify it serves traffic
+        env:
+          JWT_PUBLIC_KEY_PATH: /tmp/public.pem
+        run: |
+          python -m app &
+          server_pid=$!
+          for attempt in $(seq 1 10); do
+            if curl --fail --silent http://localhost:8000/health; then
+              kill "$server_pid"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "The service never became healthy" >&2
+          kill "$server_pid" 2>/dev/null || true
+          exit 1
