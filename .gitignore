@@ -29,6 +29,7 @@ dist/
 coverage/
 *.tsbuildinfo
 npm-debug.log*
+services/auth-api/src/generated/
 
 # Logs
 logs/
