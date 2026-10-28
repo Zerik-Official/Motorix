@@ -10,6 +10,7 @@ import { createApp } from "./app";
 import { databaseUrl, loadSettings, readPrivateKey, type Settings } from "./core/config";
 import { closeServiceLogs, setupServiceLogs } from "./core/log-files";
 import { configureLogging, log } from "./core/logging";
+import { DisabledCaptchaVerifier, TurnstileVerifier, type CaptchaVerifier } from "./core/security/captcha";
 import { JwtIssuer } from "./core/security/jwt-issuer";
 import { JwtVerifier } from "./core/security/jwt-verifier";
 import { PasswordHasher } from "./core/security/password-hasher";
@@ -43,11 +44,19 @@ async function main(): Promise<void> {
   const seed: RootSeedResult = await new RootAccountService(users, hasher).ensureRoot(settings.root);
   log(seed === "unchanged" ? "INFO" : "SUCCESS", `Root account ${seed}`);
 
+  const captcha: CaptchaVerifier = settings.turnstile.secretKey
+    ? new TurnstileVerifier(settings.turnstile.secretKey, settings.turnstile.verifyUrl)
+    : new DisabledCaptchaVerifier();
+  if (!settings.turnstile.secretKey) {
+    log("WARNING", "TURNSTILE_SECRET_KEY is empty: login does not require human verification");
+  }
+
   const app: Express = createApp({
     settings,
     database,
     jwtIssuer,
     jwtVerifier,
+    captcha,
     users,
     rolePermissions: new PrismaRolePermissionRepository(database.client),
     hasher,

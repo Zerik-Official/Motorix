@@ -19,38 +19,57 @@ export const ENVIRONMENTS = ["local", "test", "staging", "production"] as const;
  */
 export type Environment = (typeof ENVIRONMENTS)[number];
 
-const settingsSchema = z.object({
-  APP_NAME: z.string().min(1).default("auth-api"),
-  ENVIRONMENT: z.enum(ENVIRONMENTS).default("local"),
-  HOST: z.string().min(1).default("0.0.0.0"),
-  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  CORS_ORIGINS: z.string().default(""),
+/**
+ * Endpoint where Cloudflare validates Turnstile tokens.
+ */
+export const TURNSTILE_VERIFY_URL: string = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
-  DB_HOST: z.string().min(1).default("localhost"),
-  DB_PORT: z.coerce.number().int().min(1).max(65535).default(5432),
-  DB_NAME: z.string().min(1).default("auth_db"),
-  DB_USER: z.string().min(1).default("auth_service"),
-  DB_PASSWORD: z.string().default(""),
-  DB_POOL_SIZE: z.coerce.number().int().min(1).default(5),
+const settingsSchema = z
+  .object({
+    APP_NAME: z.string().min(1).default("auth-api"),
+    ENVIRONMENT: z.enum(ENVIRONMENTS).default("local"),
+    HOST: z.string().min(1).default("0.0.0.0"),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    CORS_ORIGINS: z.string().default(""),
+    TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 
-  JWT_PRIVATE_KEY_PATH: z.string().default(""),
-  JWT_PRIVATE_KEY: z.string().default(""),
-  JWT_ISSUER: z.string().min(1).default("motorix-auth-api"),
-  JWT_AUDIENCE: z.string().min(1).default("motorix-business-api"),
-  JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(3600),
+    DB_HOST: z.string().min(1).default("localhost"),
+    DB_PORT: z.coerce.number().int().min(1).max(65535).default(5432),
+    DB_NAME: z.string().min(1).default("auth_db"),
+    DB_USER: z.string().min(1).default("auth_service"),
+    DB_PASSWORD: z.string().default(""),
+    DB_POOL_SIZE: z.coerce.number().int().min(1).default(5),
 
-  MAX_PAGE_SIZE: z.coerce.number().int().min(1).default(100),
+    JWT_PRIVATE_KEY_PATH: z.string().default(""),
+    JWT_PRIVATE_KEY: z.string().default(""),
+    JWT_ISSUER: z.string().min(1).default("motorix-auth-api"),
+    JWT_AUDIENCE: z.string().min(1).default("motorix-business-api"),
+    JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(3600),
 
-  ROOT_EMAIL: z.email(),
-  ROOT_PASSWORD: z.string().min(12),
-  ROOT_FULL_NAME: z.string().min(1).max(150).default("Root"),
+    MAX_PAGE_SIZE: z.coerce.number().int().min(1).default(100),
 
-  LOG_LEVEL: z.string().default("INFO"),
-  LOG_VERBOSITY: z.coerce.number().int().min(1).default(1),
-  LOG_SUPPRESS: z.string().default(""),
-  LOG_TO_FILE: z.stringbool().default(true),
-  LOG_DIR: z.string().min(1).default("logs"),
-});
+    TURNSTILE_SECRET_KEY: z.string().default(""),
+    TURNSTILE_VERIFY_URL: z.url().default(TURNSTILE_VERIFY_URL),
+
+    RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).default(900),
+    RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).default(900),
+    LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(10),
+
+    ROOT_EMAIL: z.email(),
+    ROOT_PASSWORD: z.string().min(12),
+    ROOT_FULL_NAME: z.string().min(1).max(150).default("Root"),
+
+    LOG_LEVEL: z.string().default("INFO"),
+    LOG_VERBOSITY: z.coerce.number().int().min(1).default(1),
+    LOG_SUPPRESS: z.string().default(""),
+    LOG_TO_FILE: z.stringbool().default(true),
+    LOG_DIR: z.string().min(1).default("logs"),
+  })
+  .refine((env) => env.ENVIRONMENT !== "production" || env.TURNSTILE_SECRET_KEY.trim() !== "", {
+    message: "is required in production",
+    path: ["TURNSTILE_SECRET_KEY"],
+  });
 
 /**
  * Raw environment variables of the service after validation.
@@ -66,7 +85,18 @@ export interface Settings {
   host: string;
   port: number;
   corsOrigins: string[];
+  trustProxy: number;
   maxPageSize: number;
+  turnstile: {
+    secretKey: string;
+    verifyUrl: string;
+  };
+  rateLimit: {
+    windowSeconds: number;
+    max: number;
+    loginWindowSeconds: number;
+    loginMax: number;
+  };
   database: {
     host: string;
     port: number;
@@ -143,7 +173,18 @@ export function loadSettings(env: Record<string, string | undefined> = process.e
     corsOrigins: raw.CORS_ORIGINS.split(",")
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
+    trustProxy: raw.TRUST_PROXY,
     maxPageSize: raw.MAX_PAGE_SIZE,
+    turnstile: {
+      secretKey: raw.TURNSTILE_SECRET_KEY.trim(),
+      verifyUrl: raw.TURNSTILE_VERIFY_URL,
+    },
+    rateLimit: {
+      windowSeconds: raw.RATE_LIMIT_WINDOW_SECONDS,
+      max: raw.RATE_LIMIT_MAX,
+      loginWindowSeconds: raw.LOGIN_RATE_LIMIT_WINDOW_SECONDS,
+      loginMax: raw.LOGIN_RATE_LIMIT_MAX,
+    },
     database: {
       host: raw.DB_HOST,
       port: raw.DB_PORT,

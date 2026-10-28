@@ -281,6 +281,11 @@ The service runs on the Bun runtime, which also hashes passwords with its built-
    | `JWT_AUDIENCE` | No | `aud` claim of every token. Must match `JWT_AUDIENCE` of `business-api`. |
    | `JWT_EXPIRES_IN_SECONDS` | No | Token lifetime. Defaults to `3600`. |
    | `MAX_PAGE_SIZE` | No | Upper limit of the `limit` query parameter. Defaults to `100`. |
+   | `TRUST_PROXY` | No | Number of reverse proxies in front of the service, used to read the client address from `X-Forwarded-For`. Defaults to `0`; set `1` behind Nginx. |
+   | `TURNSTILE_SECRET_KEY` | In production | Cloudflare Turnstile secret key. Empty disables the check outside `production`; `1x0000000000000000000000000000000AA` always passes and `2x0000000000000000000000000000000AA` always fails. |
+   | `TURNSTILE_VERIFY_URL` | No | Turnstile validation endpoint. Defaults to Cloudflare's `siteverify`. |
+   | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX` | No | Requests allowed per client on `/api`. Defaults to `300` per `900` seconds. |
+   | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` / `LOGIN_RATE_LIMIT_MAX` | No | Failed logins allowed per client. Defaults to `10` per `900` seconds. |
    | `ROOT_EMAIL` | Yes | Email of the single `root` account. |
    | `ROOT_PASSWORD` | Yes | Password of `root`, at least 12 characters. |
    | `ROOT_FULL_NAME` | No | Display name of `root`. Defaults to `Root`. |

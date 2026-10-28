@@ -97,6 +97,22 @@ export class PermissionDeniedError extends AppError {
 }
 
 /**
+ * The human verification challenge was missing or did not pass.
+ */
+export class CaptchaError extends AppError {
+  override readonly statusCode: number = 400;
+  override readonly code: string = "captcha_failed";
+}
+
+/**
+ * The client sent too many requests in the current window.
+ */
+export class TooManyRequestsError extends AppError {
+  override readonly statusCode: number = 429;
+  override readonly code: string = "too_many_requests";
+}
+
+/**
  * A dependency of the service, such as the database, cannot be reached.
  */
 export class ServiceUnavailableError extends AppError {

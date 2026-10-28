@@ -98,8 +98,12 @@ Las contraseñas se cifran con **Argon2id** en `auth-api`. Nunca se almacenan ni
 
 ## Endurecimiento
 
-- Cloudflare Turnstile en el login para bloquear intentos automatizados.
-- Rate limiting en ambas API, más estricto en los endpoints de autenticación.
+- **Cloudflare Turnstile en el login.** La app web envía el token del widget como `turnstile_token`, y `auth-api` lo valida con Cloudflare del lado del servidor antes incluso de mirar la contraseña, así un bot nunca llega a gastar un hash Argon2id. Un token ausente o rechazado responde `400 captcha_failed`; si Cloudflare no responde, `503`. Sin `TURNSTILE_SECRET_KEY` la verificación se omite con una advertencia al arrancar, lo que solo se permite fuera de `production`. En local, las [claves de prueba](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) de Cloudflare fuerzan un acierto o un fallo.
+- **Rate limiting en `auth-api`**, por dirección del cliente y respondido con `429` y `Retry-After`:
+    - Todas las rutas de `/api`: `RATE_LIMIT_MAX` peticiones por `RATE_LIMIT_WINDOW_SECONDS` (300 cada 15 minutos por defecto). `/health` nunca se limita.
+    - Login: `LOGIN_RATE_LIMIT_MAX` intentos fallidos por `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (10 cada 15 minutos por defecto). Los logins exitosos no cuentan, así quien se equivoca una vez no queda bloqueado, mientras que un ataque de fuerza bruta se detiene a los pocos intentos.
+    - La dirección del cliente se toma de `X-Forwarded-For` solo cuando `TRUST_PROXY` indica cuántos proxies hay delante; con el valor por defecto `0` la cabecera se ignora, así no se puede falsificar para esquivar el límite.
+    - Los contadores viven en la memoria de cada proceso, suficiente para una sola instancia; varias instancias necesitarían un almacén compartido como Redis.
 - Cabeceras de seguridad y orígenes CORS restringidos.
 - Validación de entradas en cada endpoint (Pydantic y zod).
 - Toda la configuración viene de variables de entorno; los `.env` nunca se suben, solo `.env.example` con valores no sensibles.
