@@ -280,6 +280,7 @@ The service runs on the Bun runtime, which also hashes passwords with its built-
    | `JWT_ISSUER` | No | `iss` claim of every token. Must match `JWT_ISSUER` of `business-api`. |
    | `JWT_AUDIENCE` | No | `aud` claim of every token. Must match `JWT_AUDIENCE` of `business-api`. |
    | `JWT_EXPIRES_IN_SECONDS` | No | Token lifetime. Defaults to `3600`. |
+   | `MAX_PAGE_SIZE` | No | Upper limit of the `limit` query parameter. Defaults to `100`. |
    | `ROOT_EMAIL` | Yes | Email of the single `root` account. |
    | `ROOT_PASSWORD` | Yes | Password of `root`, at least 12 characters. |
    | `ROOT_FULL_NAME` | No | Display name of `root`. Defaults to `Root`. |

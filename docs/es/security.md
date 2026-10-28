@@ -58,6 +58,8 @@ Los roles siguen una jerarquía estricta: `root` > `admin` > `user`. Un usuario 
 
 - Con solo dos roles, un admin podría desactivar a otro admin y la plataforma podría quedarse sin ningún administrador. Un único `root` por encima de ellos elimina ese estado sin reglas adicionales.
 - Existe exactamente un `root`. Sus credenciales se definen en el entorno de `auth-api` y se siembran al arrancar: la contraseña se cifra con Argon2id antes de guardarse, y la cuenta no se puede crear, modificar ni desactivar a través de la API.
+- Cambiar un rol exige estar por encima tanto del rol actual como del nuevo, así que un `admin` no puede ascender a un `user` a `admin` ni editar a otro `admin`. Las cuentas desactivadas se conservan, nunca se borran.
+- `auth-api` lee la cuenta del llamante y los permisos de su rol desde la base en cada request, así que una desactivación o un cambio de permisos se aplica ahí de inmediato. `business-api` solo ve el token, así que ahí se aplica cuando el token expira.
 
 ## Permisos
 
