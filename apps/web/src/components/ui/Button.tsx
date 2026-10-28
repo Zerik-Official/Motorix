@@ -4,9 +4,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Visual variants and sizes of {@link Button}.
+ * Raw variants and sizes of {@link Button}, before conflicting classes are resolved.
  */
-const buttonVariants = cva(
+const buttonStyles = cva(
   "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent text-sm font-semibold whitespace-nowrap transition-colors outline-none select-none cursor-pointer focus-visible:ring-3 focus-visible:ring-focus/40 active:not-aria-[haspopup]:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-invalid:border-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
@@ -36,9 +36,20 @@ const buttonVariants = cva(
 );
 
 /**
+ * Classes of a button variant and size, with conflicting classes resolved, so a link styled as a
+ * button looks exactly like {@link Button}; for example the outline border replaces the transparent one.
+ *
+ * @param props - Variant, size and extra classes.
+ * @returns The classes.
+ */
+function buttonVariants(props: Parameters<typeof buttonStyles>[0] = {}): string {
+  return cn(buttonStyles(props));
+}
+
+/**
  * Props of {@link Button}: every prop of the Base UI button plus a variant and a size.
  */
-type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants>;
+type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonStyles>;
 
 /**
  * Button of the app, built on the Base UI primitive so it is keyboard and screen reader friendly.
@@ -47,7 +58,7 @@ type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants>;
  * @returns The button.
  */
 function Button({ className, variant = "default", size = "default", ...props }: ButtonProps) {
-  return <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return <ButtonPrimitive data-slot="button" className={buttonVariants({ variant, size, className })} {...props} />;
 }
 
 export { Button, buttonVariants, type ButtonProps };
