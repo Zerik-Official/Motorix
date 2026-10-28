@@ -1,0 +1,103 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/zerik-official
+
+jobs:
+  images:
+    name: Build and publish ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - service: auth-api
+            context: services/auth-api
+          - service: business-api
+            context: services/business-api
+          - service: web
+            context: apps/web
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/motorix-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/motorix-${{ matrix.service }}:latest
+          build-args: |
+            VITE_AUTH_API_URL=${{ vars.PUBLIC_URL }}
+            VITE_BUSINESS_API_URL=${{ vars.PUBLIC_URL }}
+            VITE_SITE_URL=${{ vars.PUBLIC_URL }}
+            VITE_TURNSTILE_SITE_KEY=${{ vars.TURNSTILE_SITE_KEY }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    name: Deploy to the VPS
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_URL }}
+    env:
+      SERVER: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+
+    steps:
+      - name: Configure the SSH key and the known host
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Log the server in to the registry for this run
+        run: printf '%s' "${{ secrets.GITHUB_TOKEN }}" | ssh "$SERVER" "docker login ghcr.io --username ${{ github.actor }} --password-stdin"
+
+      - name: Update the deployment files and restart the stack
+        run: ssh "$SERVER" "cd ~/motorix && git fetch --quiet origin main && git reset --quiet --hard ${{ github.sha }} && sh infrastructure/scripts/deploy.sh ${{ github.sha }}"
+
+      - name: Log the server out of the registry
+        if: always()
+        run: ssh "$SERVER" "docker logout ghcr.io" || true
+
+      - name: Check the public site
+        run: |
+          check() {
+            code=$(curl --silent --output /dev/null --write-out "%{http_code}" --retry 5 --retry-delay 5 --retry-all-errors "$1")
+            echo "$1 -> $code"
+            [ "$code" = "$2" ]
+          }
+          check "${{ vars.PUBLIC_URL }}/" 200
+          check "${{ vars.PUBLIC_URL }}/api/v1/users/me" 401
+          check "${{ vars.PUBLIC_URL }}/api/v1/me" 401
