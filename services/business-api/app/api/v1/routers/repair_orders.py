@@ -1,4 +1,4 @@
-"""Endpoints of repair orders: create, consult, list and change status."""
+"""Endpoints of repair orders: create, consult, list, summarize by status and change status."""
 
 # Standard library
 from __future__ import annotations
@@ -21,7 +21,14 @@ from app.core.errors import AppError
 from app.models.repair_order import RepairOrderStatus
 from app.repositories.repair_order import decode_cursor, encode_cursor
 from app.schemas.common import CursorPage, ErrorResponse
-from app.schemas.repair_order import RepairOrderCreate, RepairOrderDetail, RepairOrderRead, RepairOrderStatusUpdate
+from app.schemas.repair_order import (
+    RepairOrderCreate,
+    RepairOrderDetail,
+    RepairOrderRead,
+    RepairOrderStatusUpdate,
+    RepairOrderSummary,
+    StatusCount,
+)
 
 router: APIRouter = APIRouter(
     prefix="/repair-orders",
@@ -91,6 +98,12 @@ async def list_repair_orders(
     order_status: RepairOrderStatus | None = Query(default=None, alias="status", description="Filter by status"),
     client_id: UUID | None = Query(default=None, description="Keep only the orders of this client"),
     engine_id: UUID | None = Query(default=None, description="Keep only the orders of this engine"),
+    search: str | None = Query(
+        default=None,
+        min_length=1,
+        max_length=100,
+        description="Match on the order number, reported issue, engine serial number or client name",
+    ),
 ) -> CursorPage[RepairOrderRead]:
     """
     List repair orders with keyset pagination, newest first.
@@ -104,19 +117,41 @@ async def list_repair_orders(
         order_status: Keep only orders with this status when set.
         client_id: Keep only the orders of this client when set.
         engine_id: Keep only the orders of this engine when set.
+        search: Case insensitive match on the order number, reported issue, engine serial number or
+            client name when set.
 
     Returns:
         The requested page, with the cursor of the next one when there may be more rows.
     """
     capped_limit: int = min(limit, settings.max_page_size)
     position = _decode_cursor_param(cursor)
-    items = await service.list(capped_limit, position, order_status, client_id, engine_id)
+    text: str | None = search.strip() or None if search is not None else None
+    items = await service.list(capped_limit, position, order_status, client_id, engine_id, text)
     next_cursor: str | None = None
     if len(items) == capped_limit:
         last = items[-1]
         next_cursor = encode_cursor(last.created_at, last.id)
     read_items: list[RepairOrderRead] = [RepairOrderRead.model_validate(item) for item in items]
     return CursorPage(items=read_items, limit=capped_limit, next_cursor=next_cursor)
+
+
+@router.get("/summary", response_model=RepairOrderSummary, summary="Count repair orders per status")
+async def summarize_repair_orders(service: RepairOrderServiceDep, _: RepairOrdersReadDep) -> RepairOrderSummary:
+    """
+    Count the repair orders of every status with a single grouped query, for the dashboard.
+
+    Args:
+        service: Repair order service.
+        _: Caller holding `repair_orders:read`.
+
+    Returns:
+        The total and the count of every status, including the statuses without orders.
+    """
+    counts: dict[RepairOrderStatus, int] = await service.summary()
+    return RepairOrderSummary(
+        total=sum(counts.values()),
+        by_status=[StatusCount(status=order_status, count=count) for order_status, count in counts.items()],
+    )
 
 
 @router.get(
