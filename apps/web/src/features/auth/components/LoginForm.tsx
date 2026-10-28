@@ -1,5 +1,5 @@
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type SubmitEvent } from "react";
 import { LuLoaderCircle, LuLogIn } from "react-icons/lu";
 import { z } from "zod";
 
@@ -59,7 +59,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
    *
    * @param event - Submit event of the form.
    */
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {

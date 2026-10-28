@@ -34,6 +34,22 @@ export const router = createBrowserRouter([
           Component: (await import("@features/repair-orders/RepairOrderDetailPage")).RepairOrderDetailPage,
         }),
       },
+      {
+        path: "clientes",
+        lazy: async () => ({ Component: (await import("@features/clients/ClientsPage")).ClientsPage }),
+      },
+      {
+        path: "clientes/:clientId",
+        lazy: async () => ({ Component: (await import("@features/clients/ClientDetailPage")).ClientDetailPage }),
+      },
+      {
+        path: "motores",
+        lazy: async () => ({ Component: (await import("@features/engines/EnginesPage")).EnginesPage }),
+      },
+      {
+        path: "motores/:engineId",
+        lazy: async () => ({ Component: (await import("@features/engines/EngineDetailPage")).EngineDetailPage }),
+      },
     ],
   },
   { path: "*", Component: NotFoundPage },
