@@ -94,7 +94,7 @@ La [guía de primeros pasos](docs/es/getting-started.md) explica cómo instalar 
    sh infrastructure/scripts/generate-jwt-keys.sh
    ```
 
-   Las claves se escriben en `secrets/jwt/`, que Git ignora.
+   En Windows PowerShell, usa `infrastructure\scripts\generate-jwt-keys.ps1` en su lugar. Las claves se escriben en `secrets/jwt/`, que Git ignora.
 
 3. Levanta el stack:
 
