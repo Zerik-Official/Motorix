@@ -16,7 +16,16 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+    ROLE_PERMISSIONS {
+        enum role PK "admin | user"
+        string permission PK "resource:action"
+        timestamp granted_at
+    }
 ```
+
+- `users` y `role_permissions` comparten el enum `role` pero no tienen clave foránea: los permisos pertenecen a un rol, no a una cuenta.
+- Un índice único parcial sobre `users(role) WHERE role = 'root'` garantiza un único `root`.
+- `role_permissions` nunca guarda filas de `root` (restricción check), cuyos permisos son el catálogo completo, y solo acepta permisos del catálogo. Sus filas por defecto las inserta la migración inicial.
 
 ## business_db (business-api)
 

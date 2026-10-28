@@ -171,6 +171,20 @@ docker compose exec postgres psql -U postgres -c "\l"
 
 El script de inicialización solo se ejecuta cuando el volumen de datos está vacío. Para volver a ejecutarlo, elimina el volumen con `docker compose down -v`.
 
+### Sin Docker
+
+Con una instalación nativa de PostgreSQL, crea las dos bases y sus roles como superusuario, con los valores del `.env` raíz:
+
+```bash
+psql -U postgres -h localhost -v ON_ERROR_STOP=1 \
+  -c "CREATE ROLE auth_service LOGIN PASSWORD 'change-me-auth';" \
+  -c "CREATE DATABASE auth_db OWNER auth_service;" \
+  -c "REVOKE ALL ON DATABASE auth_db FROM PUBLIC;" \
+  -c "CREATE ROLE business_service LOGIN PASSWORD 'change-me-business';" \
+  -c "CREATE DATABASE business_db OWNER business_service;" \
+  -c "REVOKE ALL ON DATABASE business_db FROM PUBLIC;"
+```
+
 ## Configuración por componente
 
 ### business-api
@@ -235,7 +249,64 @@ El script de inicialización solo se ejecuta cuando el volumen de datos está va
 
 ### auth-api
 
-Se documenta cuando se añada el servicio.
+El servicio corre sobre el runtime de Bun, que además cifra las contraseñas con su Argon2id integrado.
+
+1. Instala las dependencias; esto también genera el cliente de Prisma:
+
+   ```bash
+   cd services/auth-api
+   bun install
+   ```
+
+2. Crea el archivo de entorno y rellena las variables:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   | Variable | Obligatoria | Descripción |
+   | --- | --- | --- |
+   | `APP_NAME` | No | Nombre del servicio, y también de su carpeta de logs. Por defecto `auth-api`. |
+   | `ENVIRONMENT` | No | `local`, `test`, `staging` o `production`. Por defecto `local`. |
+   | `HOST` / `PORT` | No | Dirección en la que escucha el servidor. Por defecto `0.0.0.0:3000`. |
+   | `CORS_ORIGINS` | No | Orígenes separados por comas que pueden llamar a la API, como la URL de la app web. |
+   | `DB_HOST` / `DB_PORT` | No | Dirección de PostgreSQL. Por defecto `localhost:5432`. |
+   | `DB_NAME` | Sí | Debe coincidir con `AUTH_DB_NAME` del `.env` raíz. |
+   | `DB_USER` | Sí | Debe coincidir con `AUTH_DB_USER` del `.env` raíz. |
+   | `DB_PASSWORD` | Sí | Debe coincidir con `AUTH_DB_PASSWORD` del `.env` raíz. |
+   | `DB_POOL_SIZE` | No | Tamaño del pool de conexiones. Por defecto `5`. |
+   | `JWT_PRIVATE_KEY_PATH` | Una de las dos | Ruta a la clave privada RS256, relativa a la carpeta del servicio. |
+   | `JWT_PRIVATE_KEY` | Una de las dos | Clave privada PEM (PKCS#8) en línea, usada en lugar de la ruta en CI y servidores; acepta `\n` como salto de línea. |
+   | `JWT_ISSUER` | No | Claim `iss` de cada token. Debe coincidir con `JWT_ISSUER` de `business-api`. |
+   | `JWT_AUDIENCE` | No | Claim `aud` de cada token. Debe coincidir con `JWT_AUDIENCE` de `business-api`. |
+   | `JWT_EXPIRES_IN_SECONDS` | No | Duración del token. Por defecto `3600`. |
+   | `ROOT_EMAIL` | Sí | Correo de la única cuenta `root`. |
+   | `ROOT_PASSWORD` | Sí | Contraseña de `root`, de al menos 12 caracteres. |
+   | `ROOT_FULL_NAME` | No | Nombre visible de `root`. Por defecto `Root`. |
+   | `LOG_LEVEL` | No | Nivel mínimo que se imprime: `DEBUG`, `INFO`, `SUCCESS`, `WARNING`, `ERROR` o `CRITICAL`. |
+   | `LOG_VERBOSITY` | No | Verbosidad máxima que se imprime; `1` muestra solo las líneas más relevantes y `2` añade el log de accesos. |
+   | `LOG_SUPPRESS` | No | Niveles o pares nivel/verbosidad que nunca se imprimen, como `DEBUG:3,SUCCESS`. |
+   | `LOG_TO_FILE` | No | Copia los logs en `<LOG_DIR>/<APP_NAME>/<YYYY-MM>/<YYYY-MM-DD>.log`. Por defecto `true`. |
+   | `LOG_DIR` | No | Carpeta de los logs, relativa a la carpeta del servicio. Por defecto `logs`. |
+
+   `root` se siembra en cada arranque desde `ROOT_*`: se crea la primera vez, y los cambios posteriores en estas variables se aplican a la cuenta. No se puede modificar por la API.
+
+3. Aplica las migraciones y arranca el servidor:
+
+   ```bash
+   bun run db:migrate
+   bun run dev
+   ```
+
+   Compruébalo con `curl http://localhost:3000/health`.
+
+4. Ejecuta el linter, la verificación de tipos y los tests:
+
+   ```bash
+   bun run lint
+   bun run typecheck
+   bun test
+   ```
 
 ### web
 

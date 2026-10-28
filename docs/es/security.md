@@ -28,6 +28,7 @@ Claims incluidos en cada token:
 | --- | --- |
 | `sub` | Identificador del usuario |
 | `role` | Rol de autorización (`root`, `admin` o `user`) |
+| `permissions` | Permisos que tenía el rol al iniciar sesión (ver [Permisos](#permisos)) |
 | `iss` | Emisor, debe coincidir con el esperado por `business-api` |
 | `aud` | Audiencia, debe coincidir con la esperada por `business-api` |
 | `iat` / `exp` | Fecha de emisión y expiración |
@@ -67,26 +68,27 @@ Un rol solo limita hasta dónde puede llegar una cuenta administrando otras cuen
 | Permiso | Por defecto: `root` | Por defecto: `admin` | Por defecto: `user` |
 | --- | --- | --- | --- |
 | `clients:read` | Sí | Sí | Sí |
-| `clients:write` | Sí | Sí | Sí |
+| `clients:write` | Sí | Sí | No |
 | `engines:read` | Sí | Sí | Sí |
-| `engines:write` | Sí | Sí | Sí |
+| `engines:write` | Sí | Sí | No |
 | `repair_orders:read` | Sí | Sí | Sí |
 | `repair_orders:write` | Sí | Sí | Sí |
 | `users:manage` | Sí | Sí | No |
 | `permissions:manage` | Sí | Sí | No |
 
-`write` cubre crear, actualizar y desactivar ese recurso; `root` siempre tiene todos los permisos.
+`write` cubre crear, actualizar y desactivar ese recurso (en órdenes de reparación, crear y cambiar el estado); `root` siempre tiene todos los permisos. El rol `user` es el operativo: consulta todo y gestiona las órdenes de reparación, mientras que registrar y editar clientes y motores queda para `admin`. Los valores por defecto los inserta la migración inicial de `auth-api`, así que los cambios hechos después por la API nunca se sobrescriben al reiniciar.
 
 **Otorgar y revocar.** Los permisos se asignan a un rol, no a una cuenta individual, y se guardan en `role_permissions` (`auth_db`). Quien tenga `permissions:manage` solo puede cambiar los permisos de un rol estrictamente inferior al suyo:
 
 - `root` puede cambiar los permisos de `admin` y de `user`.
 - `admin` solo puede cambiar los permisos de `user`.
 - Nadie puede cambiar los permisos de su propio rol ni de uno superior: un `admin` no puede cambiar los permisos de otro `admin` (no hay distinción por cuenta, solo por rol), y `user` no puede cambiar los de nadie.
-- Los permisos de `root` están fijos en el código como "todos los permisos" y nunca se leen de `role_permissions`; la API rechaza cualquier intento de modificarlos.
+- Nadie puede otorgar ni revocar un permiso que no tiene. Si no fuera así, cuando `root` le quitara `clients:write` a `admin`, un `admin` todavía podría dárselo a `user`.
+- Los permisos de `root` están fijos en el código como "todos los permisos" y nunca se leen de `role_permissions`; la base de datos rechaza filas para `root` y la API rechaza cualquier intento de modificarlos.
 
-**Cómo llega a `business-api`.** Al iniciar sesión, `auth-api` resuelve los permisos actuales de la cuenta (los del rol por defecto, sobrescritos por `role_permissions`) y los incluye como claim `permissions` en el JWT. `business-api` sigue verificando firma, `exp`, `iss` y `aud` como siempre, y además comprueba que ese claim contenga el permiso que exige cada endpoint. Como la lista viaja dentro del token, revocar un permiso solo tiene efecto la próxima vez que la cuenta inicia sesión, la misma concesión que ya se acepta para el claim `role`; así `business-api` nunca necesita llamar de vuelta a `auth-api` para resolver autorización.
+**Cómo llega a `business-api`.** Al iniciar sesión, `auth-api` resuelve los permisos actuales de la cuenta (leídos de `role_permissions`, o el catálogo completo para `root`) y los incluye como claim `permissions` en el JWT. `business-api` sigue verificando firma, `exp`, `iss` y `aud` como siempre, y además comprueba que ese claim contenga el permiso que exige cada endpoint. Como la lista viaja dentro del token, revocar un permiso solo tiene efecto la próxima vez que la cuenta inicia sesión, la misma concesión que ya se acepta para el claim `role`; así `business-api` nunca necesita llamar de vuelta a `auth-api` para resolver autorización.
 
-**Estado.** Todavía no está implementado. Hoy cada endpoint de `clients` y `engines` solo exige un token válido, sin importar el rol. La tabla `role_permissions`, los endpoints de otorgar/revocar con su verificación de jerarquía, el claim `permissions` y la dependencia `require_permission` en `business-api` se construyen juntos en las ramas de `auth-api`, porque es ahí donde se administran los datos de permisos.
+**Estado.** `auth-api` ya tiene el catálogo, la tabla `role_permissions` con sus valores por defecto, las reglas de otorgar/revocar descritas arriba y el claim `permissions` en cada token que firma. Falta: los endpoints de otorgar/revocar y la dependencia `require_permission` en `business-api`; hasta entonces cada endpoint de `business-api` solo exige un token válido, sin importar el rol.
 
 ## Contraseñas
 

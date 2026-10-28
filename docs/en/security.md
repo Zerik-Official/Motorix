@@ -28,6 +28,7 @@ Claims included in every token:
 | --- | --- |
 | `sub` | User identifier |
 | `role` | Authorization role (`root`, `admin` or `user`) |
+| `permissions` | Permissions the role held at login (see [Permissions](#permissions)) |
 | `iss` | Issuer, must match the value expected by `business-api` |
 | `aud` | Audience, must match the value expected by `business-api` |
 | `iat` / `exp` | Issue and expiration time |
@@ -67,26 +68,27 @@ A role only gates how far an account can go in managing other accounts (`4.1.6`)
 | Permission | Default: `root` | Default: `admin` | Default: `user` |
 | --- | --- | --- | --- |
 | `clients:read` | Yes | Yes | Yes |
-| `clients:write` | Yes | Yes | Yes |
+| `clients:write` | Yes | Yes | No |
 | `engines:read` | Yes | Yes | Yes |
-| `engines:write` | Yes | Yes | Yes |
+| `engines:write` | Yes | Yes | No |
 | `repair_orders:read` | Yes | Yes | Yes |
 | `repair_orders:write` | Yes | Yes | Yes |
 | `users:manage` | Yes | Yes | No |
 | `permissions:manage` | Yes | Yes | No |
 
-`write` covers create, update and deactivate for that resource; `root` always has every permission.
+`write` covers create, update and deactivate for that resource (for repair orders, create and change status); `root` always has every permission. The `user` role is the operator: it reads everything and runs repair orders, while registering and editing clients and engines is left to `admin`. The defaults are inserted by the initial migration of `auth-api`, so later changes made through the API are never overwritten on restart.
 
 **Grant and revoke.** Permissions are assigned to a role, not to an individual account, and stored in `role_permissions` (`auth_db`). Whoever holds `permissions:manage` may only change the permissions of a role strictly below their own:
 
 - `root` can change the permissions of `admin` and `user`.
 - `admin` can change the permissions of `user` only.
 - Nobody can change the permissions of their own role or a role above it: an `admin` cannot change another `admin`'s permissions (there is no per-account distinction, only per role), and `user` cannot change anyone's.
-- `root`'s permissions are hardcoded to "every permission" and are never read from `role_permissions`; the API refuses any attempt to change them.
+- Nobody can grant or revoke a permission they do not hold. Otherwise, if `root` removed `clients:write` from `admin`, an `admin` could still hand it to `user`.
+- `root`'s permissions are hardcoded to "every permission" and are never read from `role_permissions`; the database rejects rows for `root` and the API refuses any attempt to change them.
 
-**How it reaches `business-api`.** At login, `auth-api` resolves the caller's current permissions (role defaults overridden by `role_permissions`) and embeds them as a `permissions` claim in the JWT. `business-api` keeps verifying signature, `exp`, `iss` and `aud` as always, and additionally checks that the claim contains the permission a given endpoint requires. Because the list travels inside the token, a revoked permission only takes effect the next time the account logs in, the same trade-off already accepted for the `role` claim; this keeps `business-api` from ever calling back into `auth-api` to resolve authorization.
+**How it reaches `business-api`.** At login, `auth-api` resolves the caller's current permissions (read from `role_permissions`, or the whole catalog for `root`) and embeds them as a `permissions` claim in the JWT. `business-api` keeps verifying signature, `exp`, `iss` and `aud` as always, and additionally checks that the claim contains the permission a given endpoint requires. Because the list travels inside the token, a revoked permission only takes effect the next time the account logs in, the same trade-off already accepted for the `role` claim; this keeps `business-api` from ever calling back into `auth-api` to resolve authorization.
 
-**Status.** Not implemented yet. Today every endpoint of `clients` and `engines` only requires a valid token, regardless of role. The `role_permissions` table, the grant/revoke endpoints and their hierarchy check, the `permissions` claim, and the `require_permission` dependency in `business-api` are built together in the `auth-api` branches, since the permission data is administered there.
+**Status.** `auth-api` already has the catalog, the `role_permissions` table with its defaults, the grant/revoke rules above and the `permissions` claim in every token it signs. Still pending: the grant/revoke endpoints and the `require_permission` dependency in `business-api`; until then every endpoint of `business-api` only requires a valid token, regardless of role.
 
 ## Passwords
 
