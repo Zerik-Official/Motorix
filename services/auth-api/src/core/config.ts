@@ -32,6 +32,7 @@ const settingsSchema = z
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     CORS_ORIGINS: z.string().default(""),
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+    DOCS_ENABLED: z.stringbool().default(true),
 
     DB_HOST: z.string().min(1).default("localhost"),
     DB_PORT: z.coerce.number().int().min(1).max(65535).default(5432),
@@ -44,7 +45,9 @@ const settingsSchema = z
     JWT_PRIVATE_KEY: z.string().default(""),
     JWT_ISSUER: z.string().min(1).default("motorix-auth-api"),
     JWT_AUDIENCE: z.string().min(1).default("motorix-business-api"),
-    JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(3600),
+    JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(900),
+    REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().min(300).default(43200),
+    REFRESH_COOKIE_SECURE: z.stringbool().default(true),
 
     MAX_PAGE_SIZE: z.coerce.number().int().min(1).default(100),
 
@@ -69,6 +72,10 @@ const settingsSchema = z
   .refine((env) => env.ENVIRONMENT !== "production" || env.TURNSTILE_SECRET_KEY.trim() !== "", {
     message: "is required in production",
     path: ["TURNSTILE_SECRET_KEY"],
+  })
+  .refine((env) => env.ENVIRONMENT !== "production" || env.REFRESH_COOKIE_SECURE, {
+    message: "must be true in production",
+    path: ["REFRESH_COOKIE_SECURE"],
   });
 
 /**
@@ -86,6 +93,7 @@ export interface Settings {
   port: number;
   corsOrigins: string[];
   trustProxy: number;
+  docsEnabled: boolean;
   maxPageSize: number;
   turnstile: {
     secretKey: string;
@@ -111,6 +119,10 @@ export interface Settings {
     issuer: string;
     audience: string;
     expiresInSeconds: number;
+  };
+  session: {
+    refreshTokenTtlSeconds: number;
+    secureCookie: boolean;
   };
   root: {
     email: string;
@@ -174,6 +186,7 @@ export function loadSettings(env: Record<string, string | undefined> = process.e
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
     trustProxy: raw.TRUST_PROXY,
+    docsEnabled: raw.DOCS_ENABLED,
     maxPageSize: raw.MAX_PAGE_SIZE,
     turnstile: {
       secretKey: raw.TURNSTILE_SECRET_KEY.trim(),
@@ -199,6 +212,10 @@ export function loadSettings(env: Record<string, string | undefined> = process.e
       issuer: raw.JWT_ISSUER,
       audience: raw.JWT_AUDIENCE,
       expiresInSeconds: raw.JWT_EXPIRES_IN_SECONDS,
+    },
+    session: {
+      refreshTokenTtlSeconds: raw.REFRESH_TOKEN_TTL_SECONDS,
+      secureCookie: raw.REFRESH_COOKIE_SECURE,
     },
     root: {
       email: raw.ROOT_EMAIL.trim().toLowerCase(),
