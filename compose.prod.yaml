@@ -1,0 +1,35 @@
+services:
+  postgres:
+    ports: !reset []
+
+  auth-api:
+    image: ghcr.io/zerik-official/motorix-auth-api:${MOTORIX_TAG:?MOTORIX_TAG is required}
+    environment:
+      ENVIRONMENT: production
+      TRUST_PROXY: "1"
+      DOCS_ENABLED: "false"
+      REFRESH_COOKIE_SECURE: "true"
+      CORS_ORIGINS: ${PUBLIC_URL:?PUBLIC_URL is required}
+    ports: !override
+      - "127.0.0.1:3100:3000"
+
+  business-api:
+    image: ghcr.io/zerik-official/motorix-business-api:${MOTORIX_TAG:?MOTORIX_TAG is required}
+    environment:
+      ENVIRONMENT: production
+      FORWARDED_ALLOW_IPS: "*"
+      DOCS_ENABLED: "false"
+      CORS_ORIGINS: ${PUBLIC_URL:?PUBLIC_URL is required}
+    ports: !override
+      - "127.0.0.1:8100:8000"
+
+  web:
+    build:
+      args:
+        VITE_AUTH_API_URL: ${PUBLIC_URL:?PUBLIC_URL is required}
+        VITE_BUSINESS_API_URL: ${PUBLIC_URL:?PUBLIC_URL is required}
+        VITE_TURNSTILE_SITE_KEY: ${WEB_TURNSTILE_SITE_KEY:?WEB_TURNSTILE_SITE_KEY is required}
+        VITE_SITE_URL: ${PUBLIC_URL:?PUBLIC_URL is required}
+    image: ghcr.io/zerik-official/motorix-web:${MOTORIX_TAG:?MOTORIX_TAG is required}
+    ports: !override
+      - "127.0.0.1:8090:80"
