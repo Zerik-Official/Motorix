@@ -24,6 +24,16 @@ export const router = createBrowserRouter([
         index: true,
         lazy: async () => ({ Component: (await import("@features/dashboard/DashboardPage")).DashboardPage }),
       },
+      {
+        path: "ordenes",
+        lazy: async () => ({ Component: (await import("@features/repair-orders/RepairOrdersPage")).RepairOrdersPage }),
+      },
+      {
+        path: "ordenes/:orderId",
+        lazy: async () => ({
+          Component: (await import("@features/repair-orders/RepairOrderDetailPage")).RepairOrderDetailPage,
+        }),
+      },
     ],
   },
   { path: "*", Component: NotFoundPage },

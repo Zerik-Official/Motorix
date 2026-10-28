@@ -1,5 +1,5 @@
 import type { IconType } from "react-icons";
-import { LuLayoutDashboard } from "react-icons/lu";
+import { LuClipboardList, LuLayoutDashboard } from "react-icons/lu";
 
 import type { Permission } from "@shared/session/types";
 
@@ -24,4 +24,5 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: "/app", label: "Tablero", icon: LuLayoutDashboard, tourId: "nav-dashboard" },
+  { to: "/app/ordenes", label: "Órdenes", icon: LuClipboardList, permission: "repair_orders:read", tourId: "nav-orders" },
 ];

@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
@@ -49,7 +51,15 @@ export function StageBoard({ summary }: StageBoardProps) {
               <span className="text-xs font-semibold text-fg-subtle tabular">Paso {index + 1}</span>
               {summary !== null && <span className="text-xs text-fg-subtle tabular">{share}%</span>}
             </div>
-            <h2 className="font-wide text-sm font-semibold text-fg">{REPAIR_STATUS_LABELS[status]}</h2>
+            <h2 className="font-wide text-sm font-semibold text-fg">
+              <Link
+                to={`/app/ordenes?estado=${status}`}
+                className="text-fg no-underline after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-focus focus-visible:after:-outline-offset-2"
+              >
+                {REPAIR_STATUS_LABELS[status]}
+                <span className="sr-only">: ver sus órdenes</span>
+              </Link>
+            </h2>
             {summary === null ? (
               <Skeleton className="h-10 w-16" />
             ) : (
