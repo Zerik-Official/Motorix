@@ -10,36 +10,14 @@ from uuid import uuid4
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient, Response
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 # Project imports
 from app.db.base import Base
-from app.db.session import Database
+
+# Tests
+from tests.conftest import SqliteDatabase
 
 PRIVILEGED_HEADER_NAME = "Authorization"
-
-
-class SqliteDatabase(Database):
-    """Async SQLite database on a single shared connection, so repository queries are real SQL."""
-
-    def __init__(self) -> None:
-        """Build an isolated in-memory engine; the schema is created by the `_create_schema` fixture."""
-        self._engine = create_async_engine(
-            "sqlite+aiosqlite://",
-            poolclass=StaticPool,
-            connect_args={"check_same_thread": False},
-        )
-        self._session_factory = async_sessionmaker(self._engine, expire_on_commit=False)
-
-    async def ping(self) -> bool:
-        """
-        Report the database as always reachable.
-
-        Returns:
-            True.
-        """
-        return True
 
 
 @pytest.fixture
