@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StageBadge } from "@shared/components/StageBadge";
 
@@ -57,7 +59,11 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
         <tbody>
           {orders.map((order) => (
             <tr key={order.id} className="border-b border-line last:border-b-0">
-              <td className="py-2.5 pr-3 font-semibold text-fg tabular">{order.order_number}</td>
+              <td className="py-2.5 pr-3 font-semibold tabular">
+                <Link to={`/app/ordenes/${order.id}`} className="text-fg underline-offset-4 hover:underline">
+                  {order.order_number}
+                </Link>
+              </td>
               <td className="py-2.5 pr-3 text-fg">{order.client.name}</td>
               <td className="py-2.5 pr-3 text-fg-muted">
                 {order.engine.manufacturer} {order.engine.model}
@@ -75,7 +81,9 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
         {orders.map((order) => (
           <li key={order.id} className="rounded-md border border-line bg-panel p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-semibold text-fg tabular">{order.order_number}</span>
+              <Link to={`/app/ordenes/${order.id}`} className="font-semibold text-fg tabular underline-offset-4 hover:underline">
+                {order.order_number}
+              </Link>
               <StageBadge status={order.status} />
             </div>
             <p className="mt-1 text-sm text-fg">{order.client.name}</p>
