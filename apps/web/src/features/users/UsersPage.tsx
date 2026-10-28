@@ -157,7 +157,7 @@ export function UsersPage() {
 
       <UserFilters filters={filters} onChange={changeFilters} />
 
-      <section aria-labelledby="users-results" aria-busy={list.loading} className="flex flex-col gap-4">
+      <section aria-labelledby="users-results" aria-busy={list.loading} className="flex flex-col gap-4" data-tour="users-results">
         <h2 id="users-results" className="sr-only">
           Resultados
         </h2>
