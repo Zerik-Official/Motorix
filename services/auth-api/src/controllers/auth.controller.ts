@@ -24,7 +24,7 @@ export class AuthController {
    * @param response - Outgoing response, never cached.
    */
   login = async (request: Request, response: Response): Promise<void> => {
-    const result: LoginResult = await this.service.login(loginSchema.parse(request.body));
+    const result: LoginResult = await this.service.login(loginSchema.parse(request.body), request.ip);
     const body: LoginResponse = {
       access_token: result.token.accessToken,
       token_type: result.token.tokenType,
