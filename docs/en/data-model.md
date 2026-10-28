@@ -21,11 +21,23 @@ erDiagram
         string permission PK "resource:action"
         timestamp granted_at
     }
+    USERS ||--o{ REFRESH_TOKENS : "keeps sessions with"
+    REFRESH_TOKENS {
+        uuid id PK
+        uuid user_id FK
+        uuid family_id
+        string token_hash UK "SHA-256"
+        timestamp expires_at
+        timestamp created_at
+        timestamp revoked_at
+        uuid replaced_by
+    }
 ```
 
 - `users` and `role_permissions` share the `role` enum but have no foreign key: permissions belong to a role, not to an account.
 - A partial unique index on `users(role) WHERE role = 'root'` guarantees a single `root`.
 - `role_permissions` never holds rows for `root` (check constraint), whose permissions are the whole catalog, and only accepts permissions of the catalog. Its default rows are inserted by the initial migration.
+- `refresh_tokens` belongs to `users` (`ON DELETE CASCADE`) and stores only the SHA-256 hash of each token. Tokens of one session share `family_id`; `replaced_by` links a rotated token to its successor, and `revoked_at` marks the ones that can no longer be used.
 
 ## business_db (business-api)
 
