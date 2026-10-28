@@ -2,7 +2,7 @@
 
 # Standard library
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 # Third-party
@@ -31,12 +31,29 @@ class UUIDPrimaryKeyMixin:
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
 
+def utc_now() -> datetime:
+    """
+    Return the current time, timezone aware and with full microsecond precision.
+
+    Returns:
+        The current UTC time.
+
+    A column that only had `server_default=func.now()` would be timestamped by the
+    database, which on SQLite drops the microseconds; a value compared against that
+    column later (such as a keyset pagination cursor) would then never match by equality.
+    Setting this as the Python-side default keeps one precise, consistent value for both
+    the insert and any later comparison, on every backend.
+    """
+    return datetime.now(timezone.utc)
+
+
 class TimestampMixin:
     """Creation and last update timestamps managed by the database."""
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
         server_default=func.now(),
-        onupdate=func.now(),
     )
