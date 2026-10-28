@@ -68,7 +68,7 @@ class RepairOrderService:
                 repair_order_id=order.id,
                 from_status=None,
                 to_status=RepairOrderStatus.RECEIVED,
-                note="Order received",
+                note="Orden recibida",
                 changed_by=created_by,
             ),
         )
