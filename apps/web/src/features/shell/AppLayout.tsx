@@ -52,7 +52,7 @@ export function AppLayout() {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="md:hidden"
+            className="xl:hidden"
             onClick={() => setMenuOpenedAt(menuOpen ? null : location.pathname)}
             aria-expanded={menuOpen}
             aria-controls="mobile-nav"
@@ -63,7 +63,7 @@ export function AppLayout() {
           <Link to="/app" aria-label="Motorix, ir al tablero" className="rounded-md">
             <BrandMark />
           </Link>
-          <nav aria-label="Secciones" className="ml-4 hidden md:block">
+          <nav aria-label="Secciones" className="ml-4 hidden xl:block">
             <ul className="flex items-center gap-1">
               {items.map((item) => (
                 <li key={item.to}>
@@ -81,7 +81,7 @@ export function AppLayout() {
           </div>
         </div>
         {menuOpen && (
-          <nav id="mobile-nav" aria-label="Secciones" className="border-t border-line px-4 py-3 md:hidden">
+          <nav id="mobile-nav" aria-label="Secciones" className="border-t border-line px-4 py-3 xl:hidden">
             <ul className="flex flex-col gap-1">
               {items.map((item) => (
                 <li key={item.to}>
