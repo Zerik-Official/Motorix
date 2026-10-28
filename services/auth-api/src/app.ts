@@ -15,8 +15,10 @@ import type { PasswordHasher } from "./core/security/password-hasher";
 import { authenticate } from "./middleware/authenticate";
 import type { RolePermissionRepository } from "./repositories/role-permission.repository";
 import type { UserRepository } from "./repositories/user.repository";
+import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health.routes";
 import { userRouter } from "./routes/user.routes";
+import { AuthService } from "./services/auth.service";
 import type { Pingable } from "./services/health.service";
 import { PermissionService } from "./services/permission.service";
 import { UserService } from "./services/user.service";
@@ -43,6 +45,7 @@ export interface AppContext {
 export function createApp(context: AppContext): Express {
   const permissionService: PermissionService = new PermissionService(context.rolePermissions);
   const userService: UserService = new UserService(context.users, context.hasher, context.settings.maxPageSize);
+  const authService: AuthService = new AuthService(context.users, context.hasher, permissionService, context.jwtIssuer);
   const authenticated: RequestHandler = authenticate(context.jwtVerifier, context.users, permissionService);
 
   const app: Express = express();
@@ -63,6 +66,7 @@ export function createApp(context: AppContext): Express {
   app.use(express.json({ limit: "100kb" }));
   app.use(accessLog);
   app.use(healthRouter(context.database));
+  app.use("/api/v1/auth", authRouter(authService));
   app.use("/api/v1/users", userRouter(userService, authenticated));
   app.use(notFoundHandler);
   app.use(errorHandler);
