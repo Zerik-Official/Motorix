@@ -15,6 +15,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 # Project imports
 from app.core.config import Environment, Settings
@@ -48,6 +50,28 @@ class FakeDatabase(Database):
             The value of `available`.
         """
         return self.available
+
+
+class SqliteDatabase(Database):
+    """Async SQLite database on a single shared connection, so repository queries are real SQL."""
+
+    def __init__(self) -> None:
+        """Build an isolated in-memory engine; a caller creates the schema before using it."""
+        self._engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        self._session_factory = async_sessionmaker(self._engine, expire_on_commit=False)
+
+    async def ping(self) -> bool:
+        """
+        Report the database as always reachable.
+
+        Returns:
+            True.
+        """
+        return True
 
 
 def _generate_key_pair() -> tuple[str, str]:
