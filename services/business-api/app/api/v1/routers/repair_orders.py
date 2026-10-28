@@ -10,7 +10,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 # Project imports
-from app.api.dependencies import CurrentUserDep, RepairOrderServiceDep, get_settings_dependency
+from app.api.dependencies import (
+    RepairOrderServiceDep,
+    RepairOrdersReadDep,
+    RepairOrdersWriteDep,
+    get_settings_dependency,
+)
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.models.repair_order import RepairOrderStatus
@@ -18,7 +23,14 @@ from app.repositories.repair_order import decode_cursor, encode_cursor
 from app.schemas.common import CursorPage, ErrorResponse
 from app.schemas.repair_order import RepairOrderCreate, RepairOrderDetail, RepairOrderRead, RepairOrderStatusUpdate
 
-router: APIRouter = APIRouter(prefix="/repair-orders", tags=["repair-orders"])
+router: APIRouter = APIRouter(
+    prefix="/repair-orders",
+    tags=["repair-orders"],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+    },
+)
 
 
 def _decode_cursor_param(cursor: str | None) -> tuple[datetime, UUID] | None:
@@ -52,7 +64,7 @@ def _decode_cursor_param(cursor: str | None) -> tuple[datetime, UUID] | None:
 async def create_repair_order(
     data: RepairOrderCreate,
     service: RepairOrderServiceDep,
-    user: CurrentUserDep,
+    user: RepairOrdersWriteDep,
 ) -> RepairOrderDetail:
     """
     Register a new repair order for an existing engine.
@@ -72,7 +84,7 @@ async def create_repair_order(
 @router.get("", response_model=CursorPage[RepairOrderRead], summary="List repair orders")
 async def list_repair_orders(
     service: RepairOrderServiceDep,
-    _: CurrentUserDep,
+    _: RepairOrdersReadDep,
     settings: Annotated[Settings, Depends(get_settings_dependency)],
     limit: int = Query(default=20, ge=1, description="Maximum items per page"),
     cursor: str | None = Query(default=None, description="Opaque cursor returned by a previous page"),
@@ -113,7 +125,11 @@ async def list_repair_orders(
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse}},
     summary="Fetch one repair order with its status history",
 )
-async def read_repair_order(order_id: UUID, service: RepairOrderServiceDep, _: CurrentUserDep) -> RepairOrderDetail:
+async def read_repair_order(
+    order_id: UUID,
+    service: RepairOrderServiceDep,
+    _: RepairOrdersReadDep,
+) -> RepairOrderDetail:
     """
     Fetch one repair order with its engine, client and full status history.
 
@@ -142,7 +158,7 @@ async def update_repair_order_status(
     order_id: UUID,
     data: RepairOrderStatusUpdate,
     service: RepairOrderServiceDep,
-    user: CurrentUserDep,
+    user: RepairOrdersWriteDep,
 ) -> RepairOrderDetail:
     """
     Move a repair order to a different status and record the change in its history.
