@@ -8,7 +8,7 @@ sequenceDiagram
     participant A as auth-api
     participant B as business-api
 
-    W->>A: POST /auth/login (correo, contraseña, token Turnstile)
+    W->>A: POST /api/v1/auth/login (correo, contraseña, token Turnstile)
     A->>A: Verifica Turnstile, rate limit, hash Argon2id
     A-->>W: JWT (RS256, firmado con clave privada)
     W->>B: GET /api/v1/... (Authorization: Bearer JWT)
