@@ -28,7 +28,7 @@ services:
       args:
         VITE_AUTH_API_URL: ${PUBLIC_URL:?PUBLIC_URL is required}
         VITE_BUSINESS_API_URL: ${PUBLIC_URL:?PUBLIC_URL is required}
-        VITE_TURNSTILE_SITE_KEY: ${WEB_TURNSTILE_SITE_KEY:?WEB_TURNSTILE_SITE_KEY is required}
+        VITE_TURNSTILE_SITE_KEY: ${WEB_TURNSTILE_SITE_KEY:-}
         VITE_SITE_URL: ${PUBLIC_URL:?PUBLIC_URL is required}
     image: ghcr.io/zerik-official/motorix-web:${MOTORIX_TAG:?MOTORIX_TAG is required}
     ports: !override

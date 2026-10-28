@@ -52,6 +52,24 @@ jobs:
           mkdir -p pages-root/docs
           cp -r site/. pages-root/docs/
 
+      - name: Redirect the root of the Pages site to the docs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cat > pages-root/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <title>Motorix documentation</title>
+              <meta http-equiv="refresh" content="0; url=docs/">
+              <link rel="canonical" href="https://zerik-official.github.io/Motorix/docs/">
+            </head>
+            <body>
+              <a href="docs/">Motorix documentation</a>
+            </body>
+          </html>
+          HTML
+
       - name: Set up the Pages environment
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
