@@ -1,0 +1,103 @@
+# Modelo de datos
+
+Cada servicio posee su propia base de datos dentro de la misma instancia de PostgreSQL. No hay claves foráneas entre bases: `business-api` guarda el identificador del usuario del JWT (`sub`) como un UUID simple.
+
+## auth_db (auth-api)
+
+```mermaid
+erDiagram
+    USERS {
+        uuid id PK
+        string email UK
+        string full_name
+        string password_hash
+        enum role "root | admin | user"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
+## business_db (business-api)
+
+```mermaid
+erDiagram
+    CLIENTS ||--o{ ENGINES : posee
+    CLIENTS ||--o{ REPAIR_ORDERS : solicita
+    ENGINES ||--o{ REPAIR_ORDERS : "se repara en"
+    REPAIR_ORDERS ||--o{ REPAIR_ORDER_STATUS_HISTORY : registra
+
+    CLIENTS {
+        uuid id PK
+        string name
+        enum identification_type
+        string identification_number
+        string email
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+    ENGINES {
+        uuid id PK
+        string serial_number UK
+        string manufacturer
+        string model
+        string engine_type
+        string power_rating
+        uuid client_id FK
+        timestamp registered_at
+        boolean is_active
+        timestamp updated_at
+    }
+    REPAIR_ORDERS {
+        uuid id PK
+        string order_number UK
+        uuid engine_id FK
+        uuid client_id FK
+        timestamp received_at
+        text reported_issue
+        text diagnosis
+        text work_performed
+        string technician_name
+        date estimated_delivery_date
+        timestamp delivered_at
+        enum status
+        text observations
+        uuid created_by
+        timestamp created_at
+        timestamp updated_at
+    }
+    REPAIR_ORDER_STATUS_HISTORY {
+        uuid id PK
+        uuid repair_order_id FK
+        enum from_status
+        enum to_status
+        text note
+        uuid changed_by
+        timestamp changed_at
+    }
+```
+
+## Restricciones y reglas
+
+- **Clientes**: `(identification_type, identification_number)` único para evitar duplicados.
+- **Motores**: `serial_number` único.
+- **Órdenes**: `order_number` único. El cliente se guarda en la orden como una foto del propietario al momento de la recepción, y debe coincidir con el propietario del motor al crear la orden.
+- **Estados**: `received` (Recibido), `in_diagnosis` (En diagnóstico), `awaiting_approval` (Esperando aprobación), `in_repair` (En reparación), `in_testing` (En pruebas), `finished` (Finalizado), `delivered` (Entregado). Cada cambio crea una fila en `repair_order_status_history`.
+- **Técnico**: se guarda como texto de referencia; no requiere cuenta de usuario.
+- **Borrado lógico**: clientes y motores se desactivan (`is_active = false`) en lugar de eliminarse, para conservar el historial de órdenes.
+
+## Índices
+
+| Tabla | Índice | Motivo |
+| --- | --- | --- |
+| `engines` | `client_id` | Motores de un cliente |
+| `repair_orders` | `status` | Dashboard y filtro por estado |
+| `repair_orders` | `client_id`, `engine_id` | Filtros por cliente y motor |
+| `repair_orders` | `(created_at, id)` | Paginación por cursor |
+| `repair_order_status_history` | `(repair_order_id, changed_at)` | Línea de tiempo de la orden |
+
+## Inicialización
+
+- El contenedor de PostgreSQL ejecuta `infrastructure/scripts/postgres/01-create-databases.sh` en el primer arranque para crear ambas bases y sus roles.
+- Cada servicio aplica su propio esquema con su herramienta de migraciones (Alembic en `business-api`, Prisma en `auth-api`).
