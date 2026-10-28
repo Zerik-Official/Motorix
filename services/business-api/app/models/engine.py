@@ -7,10 +7,11 @@ from uuid import UUID
 
 # Third-party
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Project imports
 from app.db.base import Base, UUIDPrimaryKeyMixin
+from app.models.client import Client
 
 
 class Engine(UUIDPrimaryKeyMixin, Base):
@@ -31,3 +32,5 @@ class Engine(UUIDPrimaryKeyMixin, Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    client: Mapped[Client] = relationship()
