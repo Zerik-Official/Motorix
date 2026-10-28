@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { LuArrowLeft } from "react-icons/lu";
 import { Link, useParams } from "react-router";
 
 import { Skeleton } from "@/components/ui/Skeleton";
+import { DetailItem } from "@shared/components/DetailItem";
 import { ErrorState } from "@shared/components/ErrorState";
 import { StageBadge } from "@shared/components/StageBadge";
 import { REPAIR_STATUS_HINTS } from "@shared/domain/repair-status";
@@ -15,32 +16,6 @@ import { fetchOrder, type RepairOrderDetail } from "./api";
 import { HistoryTimeline } from "./components/HistoryTimeline";
 import { StageTrack } from "./components/StageTrack";
 import { StatusChangeForm } from "./components/StatusChangeForm";
-
-/**
- * Props of {@link Detail}.
- */
-interface DetailProps {
-  /** Name of the value. */
-  term: string;
-  /** Value, or nothing when it was not recorded. */
-  children: ReactNode;
-}
-
-/**
- * One term and value of the order details; empty values read "Sin registrar".
- *
- * @param props - Term and value.
- * @returns The pair.
- */
-function Detail({ term, children }: DetailProps) {
-  const empty: boolean = children === null || children === undefined || children === "";
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs font-medium text-fg-subtle">{term}</dt>
-      <dd className={empty ? "text-sm text-fg-faint" : "text-sm whitespace-pre-line text-fg"}>{empty ? "Sin registrar" : children}</dd>
-    </div>
-  );
-}
 
 /**
  * Everything about one repair order: its stage among the seven, the engine and client, what was
@@ -106,12 +81,12 @@ export function RepairOrderDetailPage() {
               Motor y cliente
             </h2>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Detail term="Motor">
+              <DetailItem term="Motor">
                 {order.engine.manufacturer} {order.engine.model}
-              </Detail>
-              <Detail term="Número de serie">{order.engine.serial_number}</Detail>
-              <Detail term="Cliente">{order.client.name}</Detail>
-              <Detail term="Identificación del cliente">{order.client.identification_number}</Detail>
+              </DetailItem>
+              <DetailItem term="Número de serie">{order.engine.serial_number}</DetailItem>
+              <DetailItem term="Cliente">{order.client.name}</DetailItem>
+              <DetailItem term="Identificación del cliente">{order.client.identification_number}</DetailItem>
             </dl>
           </section>
 
@@ -120,24 +95,16 @@ export function RepairOrderDetailPage() {
               Trabajo
             </h2>
             <dl className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Detail term="Falla reportada">{order.reported_issue}</Detail>
-              </div>
-              <div className="sm:col-span-2">
-                <Detail term="Diagnóstico técnico">{order.diagnosis}</Detail>
-              </div>
-              <div className="sm:col-span-2">
-                <Detail term="Trabajo realizado o reparación requerida">{order.work_performed}</Detail>
-              </div>
-              <Detail term="Técnico responsable">{order.technician_name}</Detail>
-              <Detail term="Recibido">{formatDateTime(order.received_at)}</Detail>
-              <Detail term="Entrega estimada">{order.estimated_delivery_date && formatDate(order.estimated_delivery_date)}</Detail>
-              <Detail term="Entregado">{order.delivered_at && formatDateTime(order.delivered_at)}</Detail>
-              <div className="sm:col-span-2">
-                <Detail term="Observaciones">{order.observations}</Detail>
-              </div>
-              <Detail term="Creada">{formatDateTime(order.created_at)}</Detail>
-              <Detail term="Última actualización">{formatDateTime(order.updated_at)}</Detail>
+              <DetailItem term="Falla reportada" className="sm:col-span-2">{order.reported_issue}</DetailItem>
+              <DetailItem term="Diagnóstico técnico" className="sm:col-span-2">{order.diagnosis}</DetailItem>
+              <DetailItem term="Trabajo realizado o reparación requerida" className="sm:col-span-2">{order.work_performed}</DetailItem>
+              <DetailItem term="Técnico responsable">{order.technician_name}</DetailItem>
+              <DetailItem term="Recibido">{formatDateTime(order.received_at)}</DetailItem>
+              <DetailItem term="Entrega estimada">{order.estimated_delivery_date && formatDate(order.estimated_delivery_date)}</DetailItem>
+              <DetailItem term="Entregado">{order.delivered_at && formatDateTime(order.delivered_at)}</DetailItem>
+              <DetailItem term="Observaciones" className="sm:col-span-2">{order.observations}</DetailItem>
+              <DetailItem term="Creada">{formatDateTime(order.created_at)}</DetailItem>
+              <DetailItem term="Última actualización">{formatDateTime(order.updated_at)}</DetailItem>
             </dl>
           </section>
         </div>
