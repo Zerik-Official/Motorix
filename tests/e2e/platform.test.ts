@@ -149,6 +149,55 @@ describe("repair order lifecycle under role permissions", () => {
   });
 });
 
+describe("session renewal with the refresh cookie", () => {
+  /**
+   * Sends a session request with an optional cookie and returns the cookie it sets.
+   *
+   * @param path - `login`, `refresh` or `logout`.
+   * @param cookie - `name=value` pair to send, if any.
+   * @param body - JSON body, for the login.
+   * @returns The status, the body and the refresh cookie pair set by the response, if any.
+   */
+  async function session(
+    path: "login" | "refresh" | "logout",
+    cookie?: string,
+    body?: unknown,
+  ): Promise<{ status: number; body: any; cookie: string | undefined }> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (cookie) {
+      headers.Cookie = cookie;
+    }
+    const response: Response = await fetch(`${AUTH_URL}/api/v1/auth/${path}`, {
+      method: "POST",
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const set: string | undefined = response.headers
+      .getSetCookie()
+      .find((line) => line.startsWith("motorix_refresh=") && !line.startsWith("motorix_refresh=;"));
+    const text: string = await response.text();
+    return { status: response.status, body: text ? JSON.parse(text) : null, cookie: set?.split(";")[0] };
+  }
+
+  test("a renewed access token works in business-api, and logout ends the session", async () => {
+    const opened = await session("login", undefined, { email: ROOT.email, password: ROOT.password });
+    expect(opened.status).toBe(200);
+    expect(opened.cookie).toBeDefined();
+
+    const renewed = await session("refresh", opened.cookie);
+    expect(renewed.status).toBe(200);
+    expect(renewed.cookie).not.toBe(opened.cookie);
+    expect((await call("GET", `${BUSINESS_URL}/api/v1/me`, renewed.body.access_token)).status).toBe(200);
+
+    expect((await session("refresh", opened.cookie)).status).toBe(401);
+    expect((await session("refresh", renewed.cookie)).status).toBe(401);
+
+    const again = await session("login", undefined, { email: ROOT.email, password: ROOT.password });
+    expect((await session("logout", again.cookie)).status).toBe(204);
+    expect((await session("refresh", again.cookie)).status).toBe(401);
+  });
+});
+
 describe("permission changes in auth-api", () => {
   test("a revoked permission applies to business-api from the next login", async () => {
     const revoked: ApiResponse = await call(
