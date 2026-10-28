@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient, Response
+from sqlalchemy import event
 
 # Project imports
 from app.db.base import Base
@@ -121,6 +122,8 @@ async def test_create_engine_returns_201(client: AsyncClient, make_token: Any) -
     assert body["client_id"] == client_id
     assert body["is_active"] is True
     assert "id" in body and "registered_at" in body
+    assert body["client"]["id"] == client_id
+    assert body["client"]["name"] == "Minera Andina S.A.S."
 
 
 async def test_create_engine_without_token_is_rejected(client: AsyncClient, make_token: Any) -> None:
@@ -292,3 +295,75 @@ async def test_deactivate_engine_returns_404_when_missing(client: AsyncClient, m
     """Deactivating an identifier that does not exist returns 404."""
     response: Response = await _authorized(client, make_token, "DELETE", f"/api/v1/engines/{uuid4()}")
     assert response.status_code == 404
+
+
+async def test_update_engine_returns_its_new_owner(client: AsyncClient, make_token: Any) -> None:
+    """Reassigning an engine returns the new owner, not the one loaded before the change."""
+    first_owner_id: str = await _create_client(client, make_token)
+    second_owner_id: str = await _create_client(client, make_token, name="Carbones del Cesar S.A.")
+    create_payload: dict[str, Any] = _engine_payload(first_owner_id)
+    created: Response = await _authorized(client, make_token, "POST", "/api/v1/engines", json=create_payload)
+    engine_id: str = created.json()["id"]
+    update_payload: dict[str, Any] = _engine_payload(second_owner_id, serial_number=created.json()["serial_number"])
+    update_url: str = f"/api/v1/engines/{engine_id}"
+    response: Response = await _authorized(client, make_token, "PUT", update_url, json=update_payload)
+    assert response.status_code == 200
+    assert response.json()["client"]["id"] == second_owner_id
+    assert response.json()["client"]["name"] == "Carbones del Cesar S.A."
+
+
+async def test_listing_runs_the_same_number_of_queries_for_any_page_size(
+    app: FastAPI,
+    client: AsyncClient,
+    make_token: Any,
+) -> None:
+    """Owners are loaded in batch, so a bigger page of engines of different clients never adds queries (no N+1)."""
+    for _ in range(8):
+        owner_id: str = await _create_client(client, make_token)
+        await _authorized(client, make_token, "POST", "/api/v1/engines", json=_engine_payload(owner_id))
+
+    statements: list[str] = []
+
+    def record(_conn: Any, _cursor: Any, statement: str, *_args: Any) -> None:
+        """
+        Record every statement sent to the database.
+
+        Args:
+            _conn: Connection in use.
+            _cursor: Cursor in use.
+            statement: SQL sent.
+            _args: Remaining event arguments.
+        """
+        statements.append(statement)
+
+    sync_engine = app.state.database.engine.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", record)
+    try:
+        small: Response = await _authorized(client, make_token, "GET", "/api/v1/engines", params={"limit": 1})
+        small_page: int = len(statements)
+        statements.clear()
+        big: Response = await _authorized(client, make_token, "GET", "/api/v1/engines", params={"limit": 8})
+        big_page: int = len(statements)
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", record)
+
+    assert len(small.json()["items"]) == 1
+    assert len({item["client"]["id"] for item in big.json()["items"]}) == 8
+    assert small_page == big_page
+
+
+async def test_update_can_reactivate_an_engine(client: AsyncClient, make_token: Any) -> None:
+    """An update without `is_active` keeps a deactivated engine inactive, and `is_active: true` reactivates it."""
+    owner_id: str = await _create_client(client, make_token)
+    payload: dict[str, Any] = _engine_payload(owner_id)
+    created: Response = await _authorized(client, make_token, "POST", "/api/v1/engines", json=payload)
+    engine_url: str = f"/api/v1/engines/{created.json()['id']}"
+    await _authorized(client, make_token, "DELETE", engine_url)
+
+    kept: Response = await _authorized(client, make_token, "PUT", engine_url, json=payload)
+    assert kept.json()["is_active"] is False
+
+    reactivate: dict[str, Any] = {**payload, "is_active": True}
+    reactivated: Response = await _authorized(client, make_token, "PUT", engine_url, json=reactivate)
+    assert reactivated.status_code == 200
+    assert reactivated.json()["is_active"] is True
