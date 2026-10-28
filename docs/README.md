@@ -1,6 +1,6 @@
 # Motorix Documentation
 
-Technical documentation is available in English and Spanish. It is also published as a site with MkDocs Material (`mkdocs serve`).
+Technical documentation is available in English and Spanish. It is also published as a site with MkDocs Material, at <https://zerik-official.github.io/Motorix/docs/> (or locally with `mkdocs serve`).
 
 ## English
 

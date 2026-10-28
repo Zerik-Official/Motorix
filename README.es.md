@@ -104,7 +104,7 @@ La [guía de primeros pasos](docs/es/getting-started.md) explica cómo instalar 
 
 ## Documentación
 
-La documentación se construye con MkDocs Material en inglés y español:
+La documentación se construye con MkDocs Material en inglés y español, y se publica en <https://zerik-official.github.io/Motorix/docs/>. Para servirla en local:
 
 ```bash
 pip install -r requirements-docs.txt

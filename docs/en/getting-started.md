@@ -249,3 +249,5 @@ Serve the documentation locally:
 pip install -r requirements-docs.txt
 mkdocs serve
 ```
+
+It is also published automatically: the `docs` workflow builds it with `mkdocs build --strict` on every pull request and push to `dev` and `main`, and deploys it to GitHub Pages on every push to `main`, at <https://zerik-official.github.io/Motorix/docs/>.
