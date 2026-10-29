@@ -8,8 +8,13 @@ exclude_docs: |
 theme:
   name: material
   features:
+    - navigation.tabs
     - navigation.sections
+    - navigation.indexes
     - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
     - search.highlight
     - content.code.copy
   palette:
@@ -40,9 +45,42 @@ plugins:
         - locale: es
           name: Español
           build: true
+          nav_translations:
+            Home: Inicio
+            Getting started: Primeros pasos
+            Architecture: Arquitectura
+            Overview: Visión general
+            Data model: Modelo de datos
+            Security: Seguridad
+            Services: Servicios
+            Web app: Aplicación web
+            API documentation: Documentación de la API
+            Operations: Operación
+            Testing and CI: Pruebas y CI
+            Deployment: Despliegue
+            Glossary: Glosario
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Architecture:
+      - Overview: architecture.md
+      - Data model: data-model.md
+      - Security: security.md
+  - Services:
+      - services/index.md
+      - auth-api: services/auth-api.md
+      - business-api: services/business-api.md
+      - Web app: services/web.md
+      - API documentation: api-docs.md
+  - Operations:
+      - Testing and CI: testing.md
+      - Deployment: deployment.md
+  - Glossary: glossary.md
 
 markdown_extensions:
   - admonition
+  - def_list
   - tables
   - toc:
       permalink: true
