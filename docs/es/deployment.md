@@ -79,12 +79,12 @@ En el repositorio no se guarda nada secreto, y nada de lo que está en el servid
 
 ## Configuración desde cero
 
-Haz estos pasos una sola vez y en orden. Los ejemplos usan el servidor `148.113.252.229`, el usuario `ubuntu` y el dominio `motorix.zerikapi.site`.
+Haz estos pasos una sola vez y en orden. Los ejemplos usan el dominio `motorix.zerikapi.site`, y un servidor de ejemplo `203.0.113.10` con el usuario `deploy`; reemplaza ambos por la dirección y el usuario de tu servidor.
 
 ### 1. Requisitos del servidor
 
 - Ubuntu con Docker Engine y el plugin de Compose (v2.24 o superior, por `!reset` y `!override`), Git, OpenSSL, nginx y certbot con su plugin de nginx.
-- Un usuario del grupo `docker` que haga los despliegues (`ubuntu`), y acceso SSH con `sudo` para los pasos de nginx.
+- Un usuario del grupo `docker` que haga los despliegues (`deploy`), y acceso SSH con `sudo` para los pasos de nginx.
 - Los puertos locales `3100`, `8100` y `8090` libres.
 
 ### 2. Registro DNS en Cloudflare
@@ -93,7 +93,7 @@ En **Cloudflare → zerikapi.site → DNS → Records**, añade:
 
 | Tipo | Nombre | Contenido | Estado del proxy | TTL |
 | --- | --- | --- | --- | --- |
-| `A` | `motorix` | `148.113.252.229` | **Solo DNS** (nube gris) por ahora | Auto |
+| `A` | `motorix` | `203.0.113.10` | **Solo DNS** (nube gris) por ahora | Auto |
 
 Se queda en solo DNS hasta que exista el certificado (paso 8), porque certbot tiene que llegar directo al servidor.
 
@@ -116,7 +116,7 @@ ssh-keygen -t ed25519 -C motorix-deploy -f ~/.ssh/motorix_deploy -N ""
 ssh-keygen -t ed25519 -C motorix-deploy -f "$HOME\.ssh\motorix_deploy" -N '""'
 ```
 
-Autoriza la clave pública en el servidor, desde una sesión SSH como `ubuntu`:
+Autoriza la clave pública en el servidor, desde una sesión SSH como `deploy`:
 
 ```bash
 echo "<contenido de motorix_deploy.pub>" >> ~/.ssh/authorized_keys
@@ -125,16 +125,16 @@ echo "<contenido de motorix_deploy.pub>" >> ~/.ssh/authorized_keys
 Compruébalo desde tu computador; debe imprimir `ok`:
 
 ```bash
-ssh -i ~/.ssh/motorix_deploy ubuntu@148.113.252.229 "echo ok"
+ssh -i ~/.ssh/motorix_deploy deploy@203.0.113.10 "echo ok"
 ```
 
 Obtén la clave del host del servidor, para que el runner verifique que habla con la máquina correcta. El `ssh-keyscan` que trae Windows puede fallar con `unsupported KEX method`; usa el de Git Bash, WSL o Linux:
 
 ```bash
-ssh-keyscan -t ed25519 148.113.252.229
+ssh-keyscan -t ed25519 203.0.113.10
 ```
 
-Quédate con la línea que empieza por `148.113.252.229 ssh-ed25519`.
+Quédate con la línea que empieza por `203.0.113.10 ssh-ed25519`.
 
 ### 5. Environment de GitHub
 
@@ -144,8 +144,8 @@ En **GitHub → repositorio → Settings → Environments → New environment**,
 
 | Nombre | Valor |
 | --- | --- |
-| `VPS_HOST` | `148.113.252.229` |
-| `VPS_USER` | `ubuntu` |
+| `VPS_HOST` | `203.0.113.10` |
+| `VPS_USER` | `deploy` |
 | `VPS_SSH_KEY` | El archivo de la clave privada `motorix_deploy` completo, desde `-----BEGIN OPENSSH PRIVATE KEY-----` hasta `-----END OPENSSH PRIVATE KEY-----` |
 | `VPS_KNOWN_HOSTS` | La línea de `ssh-keyscan` del paso 4 |
 
@@ -160,7 +160,7 @@ En **GitHub → repositorio → Settings → Environments → New environment**,
 
 ### 6. Repositorio y archivos de producción en el servidor
 
-Como `ubuntu`, clona el repositorio y ejecuta el bootstrap con la URL pública y el correo de `root`:
+Como `deploy`, clona el repositorio y ejecuta el bootstrap con la URL pública y el correo de `root`:
 
 ```bash
 git clone https://github.com/Zerik-Official/Motorix.git ~/motorix
